@@ -1,10 +1,12 @@
 const express = require('express');
 const fetch = require('node-fetch');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
 const ACCESS_TOKEN = '8c2c0a239d7c4c1003edd283fb8f231e3626b45f';
 const USER_ID = '4969223';
@@ -28,6 +30,9 @@ app.get('/api/*', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log('Proxy corriendo en puerto ' + PORT));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log('Servidor corriendo en puerto ' + PORT));
