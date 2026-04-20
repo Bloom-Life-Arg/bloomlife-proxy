@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Bloom Life — Dashboard</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f9f9f7; color: #1a1a1a; }
@@ -13,9 +15,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .logo { font-size: 18px; font-weight: 700; color: #1a1a1a; letter-spacing: -0.3px; }
 .logo span { color: #1D9E75; }
 .sync { font-size: 11px; color: #888; }
+.alert-bar { background: #FCEBEB; border: 1px solid #F09595; border-radius: 10px; padding: 10px 16px; font-size: 12px; color: #A32D2D; margin-bottom: 1rem; display: none; }
+.alert-bar.show { display: flex; align-items: center; gap: 8px; }
 .filter-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 1.25rem; flex-wrap: wrap; }
 .filter-bar label { font-size: 11px; color: #999; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-.filter-bar input { font-size: 12px; padding: 5px 10px; border: 1px solid #e0e0db; border-radius: 8px; background: #fff; color: #1a1a1a; font-family: inherit; }
+.filter-bar input[type=date] { font-size: 12px; padding: 5px 10px; border: 1px solid #e0e0db; border-radius: 8px; background: #fff; color: #1a1a1a; font-family: inherit; }
 .filter-bar button { font-size: 12px; padding: 5px 14px; border-radius: 8px; border: 1px solid #1D9E75; background: #1D9E75; color: #fff; cursor: pointer; font-family: inherit; font-weight: 500; }
 .filter-bar button.reset { background: #fff; color: #999; border-color: #e0e0db; }
 .nav { display: flex; gap: 6px; margin-bottom: 1.5rem; flex-wrap: wrap; }
@@ -39,7 +43,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .tbl td { padding: 8px 0; border-bottom: 1px solid #f0f0ec; color: #1a1a1a; vertical-align: middle; }
 .tbl tr:last-child td { border-bottom: none; }
 .badge { display: inline-block; font-size: 10px; padding: 3px 9px; border-radius: 20px; font-weight: 700; }
-.b-paid{background:#E1F5EE;color:#0F6E56} .b-pending{background:#FAEEDA;color:#854F0B} .b-cancelled{background:#FCEBEB;color:#A32D2D} .b-open{background:#E6F1FB;color:#185FA5} .b-abandoned{background:#F1EFE8;color:#5F5E5A}
+.b-paid{background:#E1F5EE;color:#0F6E56} .b-pending{background:#FAEEDA;color:#854F0B} .b-cancelled{background:#FCEBEB;color:#A32D2D} .b-open{background:#E6F1FB;color:#185FA5} .b-abandoned{background:#F1EFE8;color:#5F5E5A} .b-new{background:#E6F1FB;color:#185FA5} .b-rec{background:#E1F5EE;color:#0F6E56}
 .progress-wrap{width:100%;background:#f0f0ec;border-radius:4px;height:5px;margin-top:3px}
 .progress-bar{height:5px;border-radius:4px;background:#1D9E75}
 .chart-wrap{position:relative;width:100%}
@@ -53,6 +57,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .avatar{width:30px;height:30px;border-radius:50%;background:#E1F5EE;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#0F6E56;flex-shrink:0}
 .customer-row{display:flex;align-items:center;gap:8px}
 .empty{text-align:center;padding:1.5rem;color:#999;font-size:12px}
+.month-selector{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem}
+.month-btn{font-size:11px;padding:4px 12px;border-radius:20px;border:1px solid #e0e0db;background:#fff;color:#666;cursor:pointer;font-family:inherit}
+.month-btn.active{background:#1D9E75;color:#fff;border-color:#1D9E75;font-weight:600}
 .login-overlay{position:fixed;inset:0;background:#f9f9f7;display:flex;align-items:center;justify-content:center;z-index:100}
 .login-box{background:#fff;border:1px solid #e8e8e4;border-radius:20px;padding:2.5rem 2rem;width:320px;text-align:center}
 .login-logo{font-size:22px;font-weight:700;margin-bottom:0.5rem}
@@ -62,6 +69,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .login-input:focus{border-color:#1D9E75}
 .login-btn{width:100%;padding:10px;background:#1D9E75;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
 .login-err{font-size:12px;color:#D85A30;margin-top:8px;display:none}
+#map-container svg{width:100%;height:auto}
 @media(max-width:540px){.grid2{grid-template-columns:1fr}.kpis{grid-template-columns:1fr 1fr}}
 </style>
 </head>
@@ -82,6 +90,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <div class="logo">Bloom<span>Life</span> — Dashboard</div>
     <div class="sync" id="sync-time">Cargando...</div>
   </div>
+  <div class="alert-bar" id="alertBar">
+    <span>⚠</span><span id="alertMsg"></span>
+  </div>
   <div class="filter-bar">
     <label>Período:</label>
     <input type="date" id="dateFrom">
@@ -97,6 +108,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <button class="nav-btn" onclick="showSection('productos')">Productos</button>
     <button class="nav-btn" onclick="showSection('clientes')">Clientes</button>
     <button class="nav-btn" onclick="showSection('recompra')">Recompra</button>
+    <button class="nav-btn" onclick="showSection('suscripciones')">Suscripciones</button>
     <button class="nav-btn" onclick="showSection('canales')">Canales</button>
     <button class="nav-btn" onclick="showSection('pedidos')">Pedidos</button>
   </div>
@@ -106,10 +118,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 <script>
 const PROXY='';
 const PASSWORD='bloom2026';
-let ALL_ORDERS=[], ALL_PRODUCTS=[], FILTERED_ORDERS=[];
+let ALL_ORDERS=[],ALL_PRODUCTS=[],FILTERED_ORDERS=[];
 let CHARTS={};
+let SELECTED_RECOMPRA_MONTH=null;
 
-// AUTH
 function doLogin(){
   const v=document.getElementById('pwInput').value;
   if(v===PASSWORD){sessionStorage.setItem('bl_auth','ok');document.getElementById('loginOverlay').style.display='none';init();}
@@ -119,7 +131,6 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(sessionStorage.getItem('bl_auth')==='ok'){document.getElementById('loginOverlay').style.display='none';init();}
 });
 
-// UTILS
 function fmt(n){return new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:0}).format(n||0);}
 function fmtN(n){return new Intl.NumberFormat('es-AR').format(Math.round(n||0));}
 function getName(o){if(!o)return'—';if(typeof o==='string')return o;return o.es||o.en||Object.values(o)[0]||'—';}
@@ -128,7 +139,6 @@ function statusBadge(s){const m={paid:['Pagado','b-paid'],pending:['Pendiente','
 function mkChart(id,type,labels,datasets,opts){if(CHARTS[id])CHARTS[id].destroy();const ctx=document.getElementById(id);if(!ctx)return;CHARTS[id]=new Chart(ctx,{type,data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},...(opts?.plugins||{})},...opts}});}
 function tickY(v){if(v>=1000000)return'$'+(v/1000000).toFixed(1)+'M';if(v>=1000)return'$'+(v/1000).toFixed(0)+'k';return'$'+v;}
 
-// FILTER
 function applyFilter(){
   const from=document.getElementById('dateFrom').value;
   const to=document.getElementById('dateTo').value;
@@ -158,14 +168,132 @@ window.showSection=function(id){
 async function apiFetch(path){const r=await fetch(PROXY+'/api/'+path);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
 async function fetchAll(){let all=[],page=1;while(true){const b=await apiFetch('orders?per_page=200&page='+page);if(!b.length)break;all=all.concat(b);if(b.length<200)break;page++;if(page>15)break;}return all;}
 
+window.selectRecompraMonth=function(k){
+  SELECTED_RECOMPRA_MONTH=k;
+  renderRecompraDetail(k);
+  document.querySelectorAll('.month-btn').forEach(b=>b.classList.toggle('active',b.dataset.k===k));
+};
+
+function renderRecompraDetail(k){
+  const paid=FILTERED_ORDERS.filter(o=>o.payment_status==='paid');
+  const mNames=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const[y,m]=k.split('-');
+  const monthStart=new Date(parseInt(y),parseInt(m)-1,1);
+  const monthEnd=new Date(parseInt(y),parseInt(m),1);
+  const prevOrders=paid.filter(o=>new Date(o.created_at)<monthStart);
+  const prevMap={};
+  prevOrders.forEach(o=>{
+    const e=o.customer?.email;if(!e)return;
+    if(!prevMap[e])prevMap[e]={lastDate:o.created_at,count:0,rev:0};
+    prevMap[e].count++;
+    prevMap[e].rev+=parseFloat(o.total||0);
+    if(o.created_at>prevMap[e].lastDate)prevMap[e].lastDate=o.created_at;
+  });
+  const monthOrders=paid.filter(o=>{const d=new Date(o.created_at);return d>=monthStart&&d<monthEnd;});
+  const seen=new Set();
+  const rows=[];
+  monthOrders.forEach(o=>{
+    const e=o.customer?.email;if(!e||seen.has(e))return;
+    seen.add(e);
+    const isNew=!prevMap[e];
+    const prev=prevMap[e];
+    const daysSince=prev?Math.round((monthStart-new Date(prev.lastDate))/(1000*3600*24)):null;
+    rows.push({name:o.customer?.name||o.contact_name||e,email:e,isNew,lastDate:prev?.lastDate,daysSince,prevOrders:prev?.count||0,prevRev:prev?.rev||0,thisOrderTotal:parseFloat(o.total||0)});
+  });
+  rows.sort((a,b)=>a.isNew-b.isNew||b.prevOrders-a.prevOrders);
+  const label=mNames[parseInt(m)-1]+"'"+y.slice(2);
+  const newCount=rows.filter(r=>r.isNew).length;
+  const recCount=rows.filter(r=>!r.isNew).length;
+  document.getElementById('recompra-detail').innerHTML=`
+    <div class="card">
+      <div class="card-title">${label} — ${rows.length} compradores <span style="font-size:11px;font-weight:400;color:#999;margin-left:8px">${newCount} nuevos · ${recCount} recurrentes</span></div>
+      <table class="tbl">
+        <thead><tr><th>Cliente</th><th>Tipo</th><th>Pedidos prev.</th><th>Gasto prev.</th><th>Última compra previa</th><th>Días desde últ.</th><th>Este mes</th></tr></thead>
+        <tbody>
+          ${rows.map(r=>`<tr>
+            <td>
+              <div style="font-weight:600">${r.name}</div>
+              <div style="font-size:10px;color:#999;overflow:hidden;text-overflow:ellipsis;max-width:150px;white-space:nowrap">${r.email}</div>
+            </td>
+            <td>${r.isNew?'<span class="badge b-new">Nuevo</span>':'<span class="badge b-rec">Recurrente</span>'}</td>
+            <td style="color:#999">${r.prevOrders||'—'}</td>
+            <td>${r.prevRev?fmt(r.prevRev):'—'}</td>
+            <td style="color:#999;font-size:11px">${r.lastDate?new Date(r.lastDate).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'}):'—'}</td>
+            <td style="color:${r.daysSince!==null?(r.daysSince<=30?'#1D9E75':r.daysSince<=90?'#EF9F27':'#D85A30'):'#999'}">${r.daysSince!==null?r.daysSince+'d':'—'}</td>
+            <td style="font-weight:600">${fmt(r.thisOrderTotal)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function buildMap(provData){
+  const container=document.getElementById('map-container');
+  if(!container)return;
+  container.innerHTML='';
+  const provNorm={
+    'capital federal':'Ciudad Autónoma de Buenos Aires','caba':'Ciudad Autónoma de Buenos Aires',
+    'buenos aires':'Buenos Aires','gba':'Buenos Aires','cordoba':'Córdoba','córdoba':'Córdoba',
+    'santa fe':'Santa Fe','mendoza':'Mendoza','tucuman':'Tucumán','tucumán':'Tucumán',
+    'entre rios':'Entre Ríos','entre ríos':'Entre Ríos','salta':'Salta','misiones':'Misiones',
+    'chaco':'Chaco','corrientes':'Corrientes','santiago del estero':'Santiago del Estero',
+    'san juan':'San Juan','jujuy':'Jujuy','rio negro':'Río Negro','río negro':'Río Negro',
+    'neuquen':'Neuquén','neuquén':'Neuquén','formosa':'Formosa','chubut':'Chubut',
+    'san luis':'San Luis','catamarca':'Catamarca','la rioja':'La Rioja','la pampa':'La Pampa',
+    'santa cruz':'Santa Cruz','tierra del fuego':'Tierra del Fuego'
+  };
+  const normalized={};
+  Object.entries(provData).forEach(([k,v])=>{
+    const nk=provNorm[k.toLowerCase()]||k;
+    normalized[nk]=(normalized[nk]||0)+v;
+  });
+  const maxV=Math.max(...Object.values(normalized),1);
+  const color=d3.scaleSequential([0,maxV],d3.interpolate('#E1F5EE','#085041'));
+
+  d3.json('https://cdn.jsdelivr.net/npm/datamaps@0.5.10/src/js/data/arg.topo.json').then(topo=>{
+    const features=topojson.feature(topo,topo.objects.arg).features;
+    const svg=d3.select(container).append('svg').attr('viewBox','0 0 500 700').attr('width','100%');
+    const projection=d3.geoMercator().fitSize([500,700],{type:'FeatureCollection',features});
+    const path=d3.geoPath(projection);
+    svg.selectAll('path').data(features).join('path')
+      .attr('d',path)
+      .attr('fill',d=>{
+        const name=d.properties.name||'';
+        const v=normalized[name]||0;
+        return color(v);
+      })
+      .attr('stroke','#fff').attr('stroke-width',0.8)
+      .append('title').text(d=>{
+        const name=d.properties.name||'';
+        const v=normalized[name]||0;
+        return name+': '+fmtN(v)+' pedidos';
+      });
+  }).catch(()=>{
+    container.innerHTML='<div class="empty">No se pudo cargar el mapa</div>';
+  });
+}
+
 function renderAll(){
   const orders=FILTERED_ORDERS;
   const paid=orders.filter(o=>o.payment_status==='paid');
+  const now=new Date();
 
-  // --- RESUMEN ---
+  // ALERTA CAÍDA
+  const thisWeekStart=new Date(now);thisWeekStart.setDate(now.getDate()-7);
+  const lastWeekStart=new Date(now);lastWeekStart.setDate(now.getDate()-14);
+  const revThisWeek=paid.filter(o=>new Date(o.created_at)>=thisWeekStart).reduce((s,o)=>s+parseFloat(o.total||0),0);
+  const revLastWeek=paid.filter(o=>{const d=new Date(o.created_at);return d>=lastWeekStart&&d<thisWeekStart;}).reduce((s,o)=>s+parseFloat(o.total||0),0);
+  const weekDrop=revLastWeek?((revThisWeek-revLastWeek)/revLastWeek*100):0;
+  const alertBar=document.getElementById('alertBar');
+  if(weekDrop<=-20){
+    alertBar.classList.add('show');
+    document.getElementById('alertMsg').textContent=`Las ventas de esta semana cayeron ${Math.abs(weekDrop).toFixed(1)}% vs la semana anterior (${fmt(revThisWeek)} vs ${fmt(revLastWeek)})`;
+  } else { alertBar.classList.remove('show'); }
+
+  // RESUMEN
   const totalRev=paid.reduce((s,o)=>s+parseFloat(o.total||0),0);
   const avgTicket=paid.length?totalRev/paid.length:0;
-  const now=new Date();
   const m0=new Date(now.getFullYear(),now.getMonth(),1);
   const m1=new Date(now.getFullYear(),now.getMonth()-1,1);
   const pM=paid.filter(o=>new Date(o.created_at)>=m0);
@@ -187,7 +315,7 @@ function renderAll(){
   const statusCount={};
   orders.forEach(o=>{statusCount[o.payment_status]=(statusCount[o.payment_status]||0)+1;});
 
-  // --- VENTAS ---
+  // VENTAS
   const dailyMap={};
   paid.forEach(o=>{const d=new Date(o.created_at).toISOString().slice(0,10);dailyMap[d]=(dailyMap[d]||0)+parseFloat(o.total||0);});
   const dKeys=Object.keys(dailyMap).sort().slice(-30);
@@ -201,17 +329,19 @@ function renderAll(){
   const weeks=[0,0,0,0];
   paid.forEach(o=>{const diff=Math.floor((now-new Date(o.created_at))/(7*24*3600*1000));if(diff<4)weeks[diff]+=parseFloat(o.total||0);});
 
-  // --- PRODUCTOS ---
+  // PRODUCTOS
   const skuMap={};
-  paid.forEach(o=>{(o.products||[]).forEach(it=>{const n=getName(it.name);if(!skuMap[n])skuMap[n]={qty:0,rev:0,fmt:'otro'};skuMap[n].qty+=it.quantity||1;skuMap[n].rev+=parseFloat(it.price||0)*(it.quantity||1);const nl=n.toLowerCase();if(nl.includes('gummies')||nl.includes('gummy'))skuMap[n].fmt='gummies';else if(nl.includes('cápsula')||nl.includes('capsula')||nl.includes('caps'))skuMap[n].fmt='capsulas';else if(nl.includes('combo'))skuMap[n].fmt='combo';else if(nl.includes('tablet'))skuMap[n].fmt='tabletas';});});
+  paid.forEach(o=>{(o.products||[]).forEach(it=>{const n=getName(it.name);if(!skuMap[n])skuMap[n]={qty:0,rev:0,fmt:'otro',orders:0};skuMap[n].qty+=it.quantity||1;skuMap[n].rev+=parseFloat(it.price||0)*(it.quantity||1);skuMap[n].orders++;const nl=n.toLowerCase();if(nl.includes('gummies')||nl.includes('gummy'))skuMap[n].fmt='gummies';else if(nl.includes('cápsula')||nl.includes('capsula')||nl.includes('caps'))skuMap[n].fmt='capsulas';else if(nl.includes('combo'))skuMap[n].fmt='combo';else if(nl.includes('tablet'))skuMap[n].fmt='tabletas';});});
   const sortedSkus=Object.entries(skuMap).sort((a,b)=>b[1].rev-a[1].rev);
   const maxRev=Math.max(...sortedSkus.map(s=>s[1].rev),1);
   const fmtGroups={gummies:0,capsulas:0,combo:0,tabletas:0,otro:0};
   sortedSkus.forEach(([,d])=>fmtGroups[d.fmt]=(fmtGroups[d.fmt]||0)+d.rev);
+  // Ticket promedio por producto
+  const ticketByProd=sortedSkus.map(([n,d])=>({name:n,ticket:d.orders?d.rev/d.orders:0,rev:d.rev,qty:d.qty})).sort((a,b)=>b.ticket-a.ticket);
 
-  // --- CLIENTES ---
+  // CLIENTES
   const custMap={};
-  paid.forEach(o=>{const e=o.customer?.email||o.contact_email;if(!e)return;if(!custMap[e])custMap[e]={name:o.customer?.name||o.contact_name||e,email:e,orders:0,rev:0,last:o.created_at};custMap[e].orders++;custMap[e].rev+=parseFloat(o.total||0);if(o.created_at>custMap[e].last)custMap[e].last=o.created_at;});
+  paid.forEach(o=>{const e=o.customer?.email||o.contact_email;if(!e)return;if(!custMap[e])custMap[e]={name:o.customer?.name||o.contact_name||e,email:e,orders:0,rev:0,last:o.created_at,first:o.created_at};custMap[e].orders++;custMap[e].rev+=parseFloat(o.total||0);if(o.created_at>custMap[e].last)custMap[e].last=o.created_at;if(o.created_at<custMap[e].first)custMap[e].first=o.created_at;});
   const custList=Object.values(custMap);
   const avgLTV=custList.length?custList.reduce((s,c)=>s+c.rev,0)/custList.length:0;
   const avgOrders=custList.length?custList.reduce((s,c)=>s+c.orders,0)/custList.length:0;
@@ -220,16 +350,13 @@ function renderAll(){
   custList.forEach(c=>{const days=(now-new Date(c.last))/(1000*3600*24);if(days<=30)cohorts.active++;else if(days<=90)cohorts.lapsed++;else cohorts.old++;});
   const topCusts=[...custList].sort((a,b)=>b.rev-a.rev).slice(0,8);
   const topRecurring=[...recurringList].sort((a,b)=>b.orders-a.orders).slice(0,5);
-  // LTV proyectado
-  const avgDaysBetween=(()=>{let total=0,count=0;custList.filter(c=>c.orders>1).forEach(c=>{const os=paid.filter(o=>(o.customer?.email||o.contact_email)===c.email).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));for(let i=1;i<os.length;i++){total+=(new Date(os[i].created_at)-new Date(os[i-1].created_at))/(1000*3600*24);count++;}});return count?total/count:30;})();
-  const purchasesPerYear=365/avgDaysBetween;
-  const ltv12=avgTicket*purchasesPerYear;
+  const avgDaysBetween=(()=>{let total=0,count=0;recurringList.forEach(c=>{const os=paid.filter(o=>(o.customer?.email||o.contact_email)===c.email).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));for(let i=1;i<os.length;i++){total+=(new Date(os[i].created_at)-new Date(os[i-1].created_at))/(1000*3600*24);count++;}});return count?total/count:30;})();
+  const ltv12=avgTicket*(365/avgDaysBetween);
 
-  // --- RECOMPRA MES A MES ---
+  // RECOMPRA
   const allMonthKeys=Object.keys(monthlyMap).sort();
-  // Para cada mes: clientes que compraron ese mes, cuántos ya habían comprado antes
   const recompraData=allMonthKeys.map(k=>{
-    const [y,m]=k.split('-');
+    const[y,m]=k.split('-');
     const monthStart=new Date(parseInt(y),parseInt(m)-1,1);
     const monthEnd=new Date(parseInt(y),parseInt(m),1);
     const prevOrders=paid.filter(o=>new Date(o.created_at)<monthStart);
@@ -242,22 +369,48 @@ function renderAll(){
     const pct=total?(recurrentes/total*100).toFixed(1):0;
     return{k,label:mNames[parseInt(m)-1]+"'"+y.slice(2),nuevos,recurrentes,total,pct:parseFloat(pct)};
   });
+  if(!SELECTED_RECOMPRA_MONTH&&recompraData.length)SELECTED_RECOMPRA_MONTH=recompraData[recompraData.length-1].k;
 
-  // --- CANALES ---
+  // SUSCRIPCIONES
+  const subOrders=ALL_ORDERS.filter(o=>o.is_subscription);
+  const subPaid=subOrders.filter(o=>o.payment_status==='paid');
+  const subInitial=ALL_ORDERS.filter(o=>o.is_subscription_initial&&o.payment_status==='paid');
+  const subEmails=new Set(subPaid.map(o=>o.customer?.email).filter(Boolean));
+  const subCount=subEmails.size;
+  const subRevTotal=subPaid.reduce((s,o)=>s+parseFloat(o.total||0),0);
+  const subMonthlyMap={};
+  subPaid.forEach(o=>{const d=new Date(o.created_at);const k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');if(!subMonthlyMap[k])subMonthlyMap[k]={rev:0,new:0,orders:0};subMonthlyMap[k].rev+=parseFloat(o.total||0);subMonthlyMap[k].orders++;});
+  subInitial.forEach(o=>{const d=new Date(o.created_at);const k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');if(subMonthlyMap[k])subMonthlyMap[k].new++;});
+  const subMonthKeys=Object.keys(subMonthlyMap).sort();
+  const subMLabels=subMonthKeys.map(k=>{const[y,m]=k.split('-');return mNames[parseInt(m)-1]+"'"+y.slice(2);});
+  const subMRR=subMonthKeys.map(k=>Math.round(subMonthlyMap[k].rev));
+  const subNew=subMonthKeys.map(k=>subMonthlyMap[k].new||0);
+  // Churn: suscriptores que no renovaron
+  const subCustMap={};
+  subPaid.forEach(o=>{const e=o.customer?.email;if(!e)return;if(!subCustMap[e])subCustMap[e]={name:o.customer?.name||o.contact_name||e,email:e,orders:0,rev:0,last:o.created_at,first:o.created_at};subCustMap[e].orders++;subCustMap[e].rev+=parseFloat(o.total||0);if(o.created_at>subCustMap[e].last)subCustMap[e].last=o.created_at;if(o.created_at<subCustMap[e].first)subCustMap[e].first=o.created_at;});
+  const subCustList=Object.values(subCustMap);
+  const activeSubLast30=subCustList.filter(c=>(now-new Date(c.last))/(1000*3600*24)<=45);
+  const churnedSubs=subCustList.filter(c=>(now-new Date(c.last))/(1000*3600*24)>45);
+  const churnRate=subCustList.length?(churnedSubs.length/subCustList.length*100).toFixed(1):0;
+  const avgSubTicket=subPaid.length?subRevTotal/subPaid.length:0;
+  // Top productos en suscripciones
+  const subSkuMap={};
+  subPaid.forEach(o=>{(o.products||[]).forEach(it=>{const n=getName(it.name);if(!subSkuMap[n])subSkuMap[n]={qty:0,rev:0};subSkuMap[n].qty+=it.quantity||1;subSkuMap[n].rev+=parseFloat(it.price||0)*(it.quantity||1);});});
+  const sortedSubSkus=Object.entries(subSkuMap).sort((a,b)=>b[1].rev-a[1].rev).slice(0,6);
+
+  // CANALES
   const utmMap={};
-  orders.forEach(o=>{
-    const utm=o.customer_visit?.utm_parameters;
-    const source=utm?.utm_source||'directo';
-    const medium=utm?.utm_medium||'';
-    const key=medium?source+' / '+medium:source;
-    if(!utmMap[key])utmMap[key]={orders:0,rev:0};
-    utmMap[key].orders++;
-    if(o.payment_status==='paid')utmMap[key].rev+=parseFloat(o.total||0);
-  });
+  orders.forEach(o=>{const utm=o.customer_visit?.utm_parameters;const source=utm?.utm_source||'directo';const medium=utm?.utm_medium||'';const key=medium?source+' / '+medium:source;if(!utmMap[key])utmMap[key]={orders:0,rev:0};utmMap[key].orders++;if(o.payment_status==='paid')utmMap[key].rev+=parseFloat(o.total||0);});
   const sortedUtm=Object.entries(utmMap).sort((a,b)=>b[1].rev-a[1].rev).slice(0,8);
   const maxUtmRev=Math.max(...sortedUtm.map(s=>s[1].rev),1);
 
-  // BUILD HTML
+  // PROVINCIAS
+  const provMap={};
+  paid.forEach(o=>{const p=o.billing_province||o.shipping_address?.province||'Desconocida';provMap[p]=(provMap[p]||0)+1;});
+  const sortedProv=Object.entries(provMap).sort((a,b)=>b[1]-a[1]);
+  const maxProv=Math.max(...sortedProv.map(s=>s[1]),1);
+
+  // RENDER HTML
   document.getElementById('main').innerHTML=`
     <div id="sec-resumen" class="section active">
       <div class="sec-label">Resumen general</div>
@@ -292,7 +445,7 @@ function renderAll(){
         <div class="card"><div class="card-title">Promedio por día de semana</div><div class="chart-wrap" style="height:160px"><canvas id="chartDow"></canvas></div></div>
         <div class="card">
           <div class="card-title">Semanas recientes</div>
-          ${['Esta semana','Semana pasada','Hace 2 semanas','Hace 3 semanas'].map((l,i)=>`<div class="row-item"><span style="color:#999">${l}</span><span style="font-weight:600">${fmt(weeks[i])}</span></div>`).join('')}
+          ${['Esta semana','Semana pasada','Hace 2 semanas','Hace 3 semanas'].map((l,i)=>`<div class="row-item"><span style="color:#999">${l}</span><span style="font-weight:600;${i===0&&weekDrop<=-20?'color:#D85A30':''}">${fmt(weeks[i])}</span></div>`).join('')}
           <div style="margin-top:12px;font-size:11px;color:#999">Hora pico de ventas: ${peakHour}:00 hs</div>
         </div>
       </div>
@@ -303,12 +456,16 @@ function renderAll(){
       <div class="kpis">
         ${[['Combos','combo','#1D9E75'],['Gummies','gummies','#5DCAA5'],['Cápsulas','capsulas','#EF9F27'],['Tabletas','tabletas','#185FA5'],['Otros','otro','#B4B2A9']].map(([l,k,c])=>fmtGroups[k]>0?`<div class="kpi"><div class="kpi-label" style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:${c};display:inline-block"></span>${l}</div><div class="kpi-value">${fmt(fmtGroups[k])}</div><div class="kpi-sub">${fmtN(sortedSkus.filter(([,d])=>d.fmt===k).reduce((s,[,d])=>s+d.qty,0))} unidades</div></div>`:'').join('')}
       </div>
+      <div class="sec-label">Ticket promedio por producto</div>
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="chart-wrap" style="height:${Math.max(200,ticketByProd.slice(0,8).length*42+60)}px"><canvas id="chartTicket"></canvas></div>
+      </div>
       <div class="sec-label">Rendimiento por producto</div>
       <div class="card"><div class="chart-wrap" style="height:${Math.max(200,sortedSkus.slice(0,6).length*45+60)}px"><canvas id="chartProd"></canvas></div></div>
       <div class="card">
         <div class="card-title">Detalle completo</div>
-        <table class="tbl"><thead><tr><th>Producto</th><th>Formato</th><th>Unidades</th><th>Ingresos</th><th>%</th></tr></thead><tbody>
-        ${sortedSkus.map(([n,d])=>`<tr><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n}</td><td style="color:#999;font-size:11px">${d.fmt}</td><td>${fmtN(d.qty)}</td><td>${fmt(d.rev)}</td><td><div style="display:flex;align-items:center;gap:6px"><div class="progress-wrap" style="width:50px"><div class="progress-bar" style="width:${Math.round(d.rev/maxRev*100)}%"></div></div><span style="font-size:11px;color:#999">${Math.round(d.rev/maxRev*100)}%</span></div></td></tr>`).join('')}
+        <table class="tbl"><thead><tr><th>Producto</th><th>Formato</th><th>Unidades</th><th>Ticket prom.</th><th>Ingresos</th><th>%</th></tr></thead><tbody>
+        ${sortedSkus.map(([n,d])=>`<tr><td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n}</td><td style="color:#999;font-size:11px">${d.fmt}</td><td>${fmtN(d.qty)}</td><td>${fmt(d.orders?d.rev/d.orders:0)}</td><td>${fmt(d.rev)}</td><td><div style="display:flex;align-items:center;gap:6px"><div class="progress-wrap" style="width:40px"><div class="progress-bar" style="width:${Math.round(d.rev/maxRev*100)}%"></div></div><span style="font-size:11px;color:#999">${Math.round(d.rev/maxRev*100)}%</span></div></td></tr>`).join('')}
         </tbody></table>
       </div>
     </div>
@@ -320,7 +477,7 @@ function renderAll(){
         <div class="kpi"><div class="kpi-label">Tasa de retención</div><div class="kpi-value">${retRate}%</div><div class="kpi-sub">${fmtN(recurringList.length)} compraron 2+ veces</div></div>
         <div class="kpi"><div class="kpi-label">LTV promedio</div><div class="kpi-value">${fmt(avgLTV)}</div><div class="kpi-sub">por cliente (histórico)</div></div>
         <div class="kpi"><div class="kpi-label">LTV proyectado 12m</div><div class="kpi-value">${fmt(ltv12)}</div><div class="kpi-sub">basado en frecuencia real</div></div>
-        <div class="kpi"><div class="kpi-label">Días entre compras</div><div class="kpi-value">${Math.round(avgDaysBetween)}</div><div class="kpi-sub">promedio clientes recurrentes</div></div>
+        <div class="kpi"><div class="kpi-label">Días entre compras</div><div class="kpi-value">${Math.round(avgDaysBetween)}</div><div class="kpi-sub">promedio recurrentes</div></div>
         <div class="kpi"><div class="kpi-label">Pedidos promedio</div><div class="kpi-value">${avgOrders.toFixed(1)}</div><div class="kpi-sub">por cliente</div></div>
       </div>
       <div class="grid2">
@@ -342,12 +499,55 @@ function renderAll(){
       <div class="sec-label">Tasa de recompra mes a mes</div>
       <div class="card"><div class="chart-wrap" style="height:220px"><canvas id="chartRecompra"></canvas></div></div>
       <div class="card"><div class="chart-wrap" style="height:220px"><canvas id="chartNuevosVsRec"></canvas></div></div>
-      <div class="card">
-        <div class="card-title">Detalle mensual</div>
+      <div class="sec-label">Detalle por mes — seleccioná un mes para ver el listado</div>
+      <div class="month-selector">
+        ${recompraData.map(r=>`<button class="month-btn${r.k===SELECTED_RECOMPRA_MONTH?' active':''}" data-k="${r.k}" onclick="selectRecompraMonth('${r.k}')">${r.label} <span style="opacity:0.7">${r.pct}%</span></button>`).join('')}
+      </div>
+      <div id="recompra-detail"></div>
+      <div class="card" style="margin-top:12px">
+        <div class="card-title">Resumen mensual</div>
         <table class="tbl"><thead><tr><th>Mes</th><th>Compradores</th><th>Nuevos</th><th>Recurrentes</th><th>% Recompra</th></tr></thead><tbody>
         ${recompraData.map(r=>`<tr><td style="font-weight:600">${r.label}</td><td>${fmtN(r.total)}</td><td style="color:#185FA5">${fmtN(r.nuevos)}</td><td style="color:#1D9E75">${fmtN(r.recurrentes)}</td><td><span style="font-weight:700;color:${r.pct>=30?'#1D9E75':r.pct>=15?'#EF9F27':'#D85A30'}">${r.pct}%</span></td></tr>`).join('')}
         </tbody></table>
       </div>
+    </div>
+
+    <div id="sec-suscripciones" class="section">
+      <div class="sec-label">Métricas de suscripciones</div>
+      ${subCount===0?'<div class="card"><div class="empty">No se encontraron pedidos de suscripción. Verificá que las suscripciones estén activas en Tienda Nube.</div></div>':`
+      <div class="kpis">
+        <div class="kpi"><div class="kpi-label">Suscriptores activos</div><div class="kpi-value">${fmtN(activeSubLast30.length)}</div><div class="kpi-sub">renovaron en últimos 45d</div></div>
+        <div class="kpi"><div class="kpi-label">MRR estimado</div><div class="kpi-value">${fmt(subMonthlyMap[subMonthKeys[subMonthKeys.length-1]]?.rev||0)}</div><div class="kpi-sub">último mes completo</div></div>
+        <div class="kpi"><div class="kpi-label">Total suscriptores</div><div class="kpi-value">${fmtN(subCount)}</div><div class="kpi-sub">con al menos 1 cobro</div></div>
+        <div class="kpi"><div class="kpi-label">Ticket suscripción</div><div class="kpi-value">${fmt(avgSubTicket)}</div><div class="kpi-sub">promedio por cobro</div></div>
+        <div class="kpi"><div class="kpi-label">Churn estimado</div><div class="kpi-value">${churnRate}%</div><div class="kpi-sub">${fmtN(churnedSubs.length)} sin renovación</div></div>
+        <div class="kpi"><div class="kpi-label">Ingresos totales</div><div class="kpi-value">${fmt(subRevTotal)}</div><div class="kpi-sub">por suscripciones</div></div>
+      </div>
+      <div class="sec-label">MRR mensual</div>
+      <div class="card"><div class="chart-wrap" style="height:180px"><canvas id="chartMRR"></canvas></div></div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-title">Nuevos suscriptores por mes</div>
+          <div class="chart-wrap" style="height:160px"><canvas id="chartSubNew"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Top productos en suscripciones</div>
+          ${sortedSubSkus.length===0?'<div class="empty">Sin datos</div>':sortedSubSkus.map(([n,d])=>`
+            <div style="margin-bottom:10px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+                <span style="max-width:65%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n}</span>
+                <span style="color:#999">${fmt(d.rev)}</span>
+              </div>
+              <div class="progress-wrap"><div class="progress-bar" style="width:${Math.round(d.rev/Math.max(...sortedSubSkus.map(([,x])=>x.rev),1)*100)}%"></div></div>
+            </div>`).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Suscriptores activos</div>
+        <table class="tbl"><thead><tr><th>Cliente</th><th>Cobros</th><th>Total pagado</th><th>Último cobro</th><th>Estado</th></tr></thead><tbody>
+        ${[...subCustList].sort((a,b)=>b.rev-a.rev).slice(0,20).map(c=>{const days=(now-new Date(c.last))/(1000*3600*24);const active=days<=45;return`<tr><td><div style="font-weight:600">${c.name}</div><div style="font-size:10px;color:#999;overflow:hidden;text-overflow:ellipsis;max-width:150px;white-space:nowrap">${c.email}</div></td><td>${c.orders}</td><td style="font-weight:600">${fmt(c.rev)}</td><td style="color:#999">${new Date(c.last).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'})}</td><td>${active?'<span class="badge b-paid">Activo</span>':'<span class="badge b-cancelled">Churned</span>'}</td></tr>`;}).join('')}
+        </tbody></table>
+      </div>`}
     </div>
 
     <div id="sec-canales" class="section">
@@ -369,20 +569,36 @@ function renderAll(){
         </tbody></table>
         ${orders.length>50?`<div style="text-align:center;padding:12px;font-size:12px;color:#999">Mostrando los últimos 50 de ${fmtN(orders.length)} pedidos</div>`:''}
       </div>
+      <div class="sec-label">Distribución por provincia</div>
+      <div class="grid2">
+        <div class="card" id="map-container" style="min-height:300px"></div>
+        <div class="card">
+          <div class="card-title">Pedidos por provincia</div>
+          ${sortedProv.map(([p,c])=>`<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px"><span>${p}</span><span style="font-weight:600">${fmtN(c)}</span></div><div class="progress-wrap"><div class="progress-bar" style="width:${Math.round(c/maxProv*100)}%"></div></div></div>`).join('')}
+        </div>
+      </div>
     </div>
   `;
 
   document.getElementById('sync-time').textContent='Actualizado: '+new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+
+  if(SELECTED_RECOMPRA_MONTH) renderRecompraDetail(SELECTED_RECOMPRA_MONTH);
 
   setTimeout(()=>{
     mkChart('chartMonthly','bar',mLabels,[{label:'Ingresos',data:mVals,backgroundColor:'#1D9E75',borderRadius:4,borderSkipped:false}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:tickY}}}});
     mkChart('chartDaily','line',dLabels,[{label:'Ventas',data:dVals,borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.08)',fill:true,tension:0.3,pointRadius:2}],{scales:{x:{grid:{display:false},ticks:{font:{size:10},maxTicksLimit:10}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:tickY}}}});
     mkChart('chartDow','bar',dowLabels,[{label:'Promedio',data:dowAvg,backgroundColor:'#5DCAA5',borderRadius:4}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:10},callback:tickY}}}});
     mkChart('chartProd','bar',sortedSkus.slice(0,6).map(([n])=>n.length>20?n.slice(0,20)+'…':n),[{label:'Ingresos',data:sortedSkus.slice(0,6).map(([,d])=>Math.round(d.rev)),backgroundColor:'#1D9E75',borderRadius:4}],{indexAxis:'y',scales:{x:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:10},callback:tickY}},y:{grid:{display:false},ticks:{font:{size:11}}}}});
+    mkChart('chartTicket','bar',ticketByProd.slice(0,8).map(p=>p.name.length>20?p.name.slice(0,20)+'…':p.name),[{label:'Ticket',data:ticketByProd.slice(0,8).map(p=>Math.round(p.ticket)),backgroundColor:'#5DCAA5',borderRadius:4}],{indexAxis:'y',scales:{x:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:10},callback:tickY}},y:{grid:{display:false},ticks:{font:{size:11}}}}});
     mkChart('chartCohort','doughnut',['Activos (30d)','Inactivos (31-90d)','Sin compras recientes'],[{data:[cohorts.active,cohorts.lapsed,cohorts.old],backgroundColor:['#1D9E75','#EF9F27','#B4B2A9'],borderWidth:0}],{plugins:{legend:{display:true,position:'bottom',labels:{font:{size:11},boxWidth:10,padding:12}}}});
     mkChart('chartRecompra','line',recompraData.map(r=>r.label),[{label:'% Recompra',data:recompraData.map(r=>r.pct),borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.08)',fill:true,tension:0.3,pointRadius:4,pointBackgroundColor:'#1D9E75'}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:v=>v+'%'},max:100}},plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.raw+'%'}}}});
-    mkChart('chartNuevosVsRec','bar',recompraData.map(r=>r.label),[{label:'Nuevos',data:recompraData.map(r=>r.nuevos),backgroundColor:'#185FA5',borderRadius:3},{label:'Recurrentes',data:recompraData.map(r=>r.recurrentes),backgroundColor:'#1D9E75',borderRadius:3}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11}},stacked:false}},plugins:{legend:{display:true,position:'bottom',labels:{font:{size:11},boxWidth:10,padding:12}}}});
+    mkChart('chartNuevosVsRec','bar',recompraData.map(r=>r.label),[{label:'Nuevos',data:recompraData.map(r=>r.nuevos),backgroundColor:'#185FA5',borderRadius:3},{label:'Recurrentes',data:recompraData.map(r=>r.recurrentes),backgroundColor:'#1D9E75',borderRadius:3}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11}}}},plugins:{legend:{display:true,position:'bottom',labels:{font:{size:11},boxWidth:10,padding:12}}}});
     mkChart('chartUtm','bar',sortedUtm.map(([k])=>k.length>20?k.slice(0,20)+'…':k),[{label:'Ingresos',data:sortedUtm.map(([,d])=>Math.round(d.rev)),backgroundColor:'#1D9E75',borderRadius:4}],{indexAxis:'y',scales:{x:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:10},callback:tickY}},y:{grid:{display:false},ticks:{font:{size:11}}}}});
+    if(subCount>0){
+      mkChart('chartMRR','bar',subMLabels,[{label:'MRR',data:subMRR,backgroundColor:'#1D9E75',borderRadius:4,borderSkipped:false}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:tickY}}}});
+      mkChart('chartSubNew','bar',subMLabels,[{label:'Nuevos',data:subNew,backgroundColor:'#5DCAA5',borderRadius:4}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},beginAtZero:true}}}});
+    }
+    setTimeout(()=>buildMap(provMap),200);
   },150);
 }
 
