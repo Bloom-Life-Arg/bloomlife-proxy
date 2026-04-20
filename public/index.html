@@ -78,7 +78,45 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .stock-alert.critical{background:#FCEBEB;border:1px solid #F09595;color:#A32D2D}
 .stock-alert.low{background:#FFFDE7;border:1px solid #FDD835;color:#F57F17}
 .tag{display:inline-block;font-size:10px;padding:2px 8px;border-radius:12px;background:#f0f0ec;color:#666;margin:2px}
-@media(max-width:540px){.grid2{grid-template-columns:1fr}.kpis{grid-template-columns:1fr 1fr}.nav-group-label{display:none}}
+/* ── FINANCES ── */
+.fin-modal{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:center;justify-content:center}
+.fin-modal-box{background:#fff;border-radius:16px;padding:1.5rem;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto}
+.fin-modal-title{font-size:15px;font-weight:700;margin-bottom:1rem}
+.fin-field{margin-bottom:12px}
+.fin-field label{display:block;font-size:11px;color:#999;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.fin-field input,.fin-field select,.fin-field textarea{width:100%;padding:8px 12px;border:1px solid #e0e0db;border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:#fff;color:#1a1a1a}
+.fin-field input:focus,.fin-field select:focus{border-color:#1D9E75}
+.fin-field textarea{resize:vertical;min-height:60px}
+.fin-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn-primary{padding:8px 18px;background:#1D9E75;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.btn-secondary{padding:8px 18px;background:#fff;color:#666;border:1px solid #e0e0db;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit}
+.btn-danger{padding:5px 10px;background:#FCEBEB;color:#A32D2D;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit}
+.btn-sm{padding:4px 10px;font-size:11px;border-radius:6px;border:1px solid #e0e0db;background:#fff;color:#666;cursor:pointer;font-family:inherit}
+.btn-sm:hover{border-color:#1D9E75;color:#1D9E75}
+.pl-waterfall{display:grid;grid-template-columns:1fr;gap:1px;background:#f0f0ec;border-radius:10px;overflow:hidden;margin-bottom:1rem}
+.pl-row{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:#fff;font-size:13px}
+.pl-row.header{background:#f9f9f7;font-weight:700;font-size:12px;color:#999;text-transform:uppercase;letter-spacing:.5px}
+.pl-row.total{background:#f0fdf8;font-weight:700;font-size:15px}
+.pl-row.subtotal{background:#fafaf8;font-weight:600}
+.pl-row.negative .pl-val{color:#D85A30}
+.pl-row.positive .pl-val{color:#1D9E75}
+.pl-val{font-weight:600;font-size:14px}
+.pl-pct{font-size:11px;color:#999;margin-left:8px}
+.mktg-section{margin-bottom:1.25rem}
+.mktg-section-title{font-size:11px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.6px;padding:8px 0 4px;border-bottom:1px solid #f0f0ec;margin-bottom:6px}
+.mktg-line{display:grid;grid-template-columns:180px 1fr 1fr 80px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid #f8f8f6;font-size:12px}
+.mktg-line.header{font-size:11px;color:#999;font-weight:600;padding-bottom:4px}
+.mktg-input{width:100%;padding:5px 8px;border:1px solid #e0e0db;border-radius:6px;font-size:12px;font-family:inherit;text-align:right;outline:none}
+.mktg-input:focus{border-color:#1D9E75}
+.mktg-total-row{display:grid;grid-template-columns:180px 1fr 1fr 80px;gap:8px;align-items:center;padding:8px 0;font-size:13px;font-weight:700;border-top:2px solid #e0e0db;margin-top:4px}
+.variance-pos{color:#1D9E75;font-size:11px}
+.variance-neg{color:#D85A30;font-size:11px}
+.cost-input-sm{width:80px;padding:4px 8px;border:1px solid #e0e0db;border-radius:6px;font-size:12px;font-family:inherit;text-align:right;outline:none}
+.cost-input-sm:focus{border-color:#1D9E75}
+.month-tabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:1rem}
+.month-tab{font-size:11px;padding:4px 12px;border-radius:20px;border:1px solid #e0e0db;background:#fff;color:#666;cursor:pointer;font-family:inherit}
+.month-tab.active{background:#1D9E75;color:#fff;border-color:#1D9E75;font-weight:600}
+@media(max-width:540px){.grid2{grid-template-columns:1fr}.kpis{grid-template-columns:1fr 1fr}.nav-group-label{display:none}.mktg-line{grid-template-columns:1fr 1fr 1fr;}.mktg-line span:first-child{grid-column:1/-1;font-weight:600}}
 </style>
 </head>
 <body>
@@ -130,6 +168,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <button class="nav-btn" onclick="showSection('pedidos')">Pedidos</button>
       <button class="nav-btn" onclick="showSection('abandonados')">Abandonados</button>
     </div>
+    <div class="nav-row">
+      <span class="nav-group-label">Finanzas</span>
+      <button class="nav-btn" onclick="showSection('finanzas')">P&L</button>
+      <button class="nav-btn" onclick="showSection('b2b')">B2B</button>
+      <button class="nav-btn" onclick="showSection('gastos')">Gastos</button>
+      <button class="nav-btn" onclick="showSection('marketing-plan')">Marketing</button>
+      <button class="nav-btn" onclick="showSection('costos')">Costos</button>
+      <button class="nav-btn" onclick="showSection('pagos-prov')">Cuentas x pagar</button>
+    </div>
   </div>
   <div id="main"><div class="loading"><div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div><p style="margin-top:1rem">Conectando con Tienda Nube...</p></div></div>
 </div>
@@ -162,7 +209,16 @@ const tickY=v=>{if(v>=1000000)return'$'+(v/1000000).toFixed(1)+'M';if(v>=1000)re
 function applyFilter(){const from=document.getElementById('dateFrom').value,to=document.getElementById('dateTo').value;if(!from&&!to){resetFilter();return;}FILTERED_ORDERS=ALL_ORDERS.filter(o=>{const d=new Date(o.created_at);if(from&&d<new Date(from))return false;if(to&&d>new Date(to+'T23:59:59'))return false;return true;});document.getElementById('filter-active').style.display='inline';renderAll();}
 function resetFilter(){FILTERED_ORDERS=[...ALL_ORDERS];document.getElementById('dateFrom').value='';document.getElementById('dateTo').value='';document.getElementById('filter-active').style.display='none';renderAll();}
  
-window.showSection=function(id){document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.getAttribute('onclick')?.includes("'"+id+"'")));document.querySelectorAll('.section').forEach(s=>s.classList.toggle('active',s.id==='sec-'+id));};
+window.showSection=function(id){
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.getAttribute('onclick')?.includes("'"+id+"'")));
+  document.querySelectorAll('.section').forEach(s=>s.classList.toggle('active',s.id==='sec-'+id));
+  if(id==='finanzas')      renderFinPL();
+  if(id==='b2b')           renderFinB2B();
+  if(id==='gastos')        renderFinGastos();
+  if(id==='marketing-plan')renderFinMktg();
+  if(id==='costos')        renderFinCostos();
+  if(id==='pagos-prov')    renderFinProv();
+};
  
 async function apiFetch(path){const r=await fetch(PROXY+'/api/'+path);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
 async function fetchAllOrders(){let all=[],page=1;while(true){const b=await apiFetch('orders?per_page=200&page='+page);if(!Array.isArray(b)||!b.length)break;all=all.concat(b);if(b.length<200)break;page++;if(page>15)break;}return all;}
@@ -199,7 +255,6 @@ function renderAll(){
   const orders=FILTERED_ORDERS,paid=orders.filter(o=>o.payment_status==='paid'),now=new Date();
   const mNames=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
  
-  // Alerta caída
   const tw=new Date(now);tw.setDate(now.getDate()-7);const lw=new Date(now);lw.setDate(now.getDate()-14);
   const revTW=paid.filter(o=>new Date(o.created_at)>=tw).reduce((s,o)=>s+parseFloat(o.total||0),0);
   const revLW=paid.filter(o=>{const d=new Date(o.created_at);return d>=lw&&d<tw;}).reduce((s,o)=>s+parseFloat(o.total||0),0);
@@ -208,7 +263,6 @@ function renderAll(){
   if(weekDrop<=-20){ab.classList.add('show');document.getElementById('alertMsg').textContent='Ventas esta semana cayeron '+Math.abs(weekDrop).toFixed(1)+'% vs semana anterior ('+fmt(revTW)+' vs '+fmt(revLW)+')';}
   else ab.classList.remove('show');
  
-  // KPIs base
   const totalRev=paid.reduce((s,o)=>s+parseFloat(o.total||0),0);
   const avgTicket=paid.length?totalRev/paid.length:0;
   const m0=new Date(now.getFullYear(),now.getMonth(),1),m1=new Date(now.getFullYear(),now.getMonth()-1,1);
@@ -219,7 +273,6 @@ function renderAll(){
   const customers=Object.keys(emailCount),returning=Object.values(emailCount).filter(c=>c>1).length;
   const retRate=customers.length?(returning/customers.length*100).toFixed(0):0;
  
-  // Ingresos mensuales + ticket mensual
   const monthlyMap={},monthlyOrdersMap={};
   paid.forEach(o=>{const d=new Date(o.created_at),k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');monthlyMap[k]=(monthlyMap[k]||0)+parseFloat(o.total||0);monthlyOrdersMap[k]=(monthlyOrdersMap[k]||0)+1;});
   const mKeys=Object.keys(monthlyMap).sort(),mLast6=mKeys.slice(-6);
@@ -228,7 +281,6 @@ function renderAll(){
   const mTickets=mLast6.map(k=>monthlyOrdersMap[k]?Math.round(monthlyMap[k]/monthlyOrdersMap[k]):0);
   const statusCount={};orders.forEach(o=>{statusCount[o.payment_status]=(statusCount[o.payment_status]||0)+1;});
  
-  // Ventas diarias / DOW / semanas
   const dailyMap={};paid.forEach(o=>{const d=new Date(o.created_at).toISOString().slice(0,10);dailyMap[d]=(dailyMap[d]||0)+parseFloat(o.total||0);});
   const dKeys=Object.keys(dailyMap).sort().slice(-30),dVals=dKeys.map(k=>Math.round(dailyMap[k])),dLabels=dKeys.map(k=>{const[,m,d]=k.split('-');return d+'/'+m;});
   const dowMap=Array(7).fill(0),dowCount=Array(7).fill(0);paid.forEach(o=>{const d=new Date(o.created_at).getDay();dowMap[d]+=parseFloat(o.total||0);dowCount[d]++;});
@@ -236,14 +288,12 @@ function renderAll(){
   const peakHour=(()=>{const h=Array(24).fill(0);paid.forEach(o=>h[new Date(o.created_at).getHours()]+=parseFloat(o.total||0));return h.indexOf(Math.max(...h));})();
   const weeks=[0,0,0,0];paid.forEach(o=>{const diff=Math.floor((now-new Date(o.created_at))/(7*24*3600*1000));if(diff<4)weeks[diff]+=parseFloat(o.total||0);});
  
-  // Descuentos y cupones
   const totalDiscount=paid.reduce((s,o)=>s+parseFloat(o.discount||0),0);
   const discountRate=(totalRev+totalDiscount)>0?(totalDiscount/(totalRev+totalDiscount)*100).toFixed(1):0;
   const couponMap={};
   paid.forEach(o=>{const c=o.coupon;if(!c)return;const code=Array.isArray(c)?c[0]?.code:c?.code;if(!code)return;if(!couponMap[code])couponMap[code]={uses:0,discount:0,rev:0};couponMap[code].uses++;couponMap[code].discount+=parseFloat(o.discount||0);couponMap[code].rev+=parseFloat(o.total||0);});
   const topCoupons=Object.entries(couponMap).sort((a,b)=>b[1].uses-a[1].uses).slice(0,8);
  
-  // Productos
   const skuMap={};
   paid.forEach(o=>{(o.products||[]).forEach(it=>{const n=getName(it.name);if(!skuMap[n])skuMap[n]={qty:0,rev:0,fmt:'otro',orders:0};skuMap[n].qty+=it.quantity||1;skuMap[n].rev+=parseFloat(it.price||0)*(it.quantity||1);skuMap[n].orders++;const nl=n.toLowerCase();if(nl.includes('gummies')||nl.includes('gummy'))skuMap[n].fmt='gummies';else if(nl.includes('capsula')||nl.includes('caps'))skuMap[n].fmt='capsulas';else if(nl.includes('combo'))skuMap[n].fmt='combo';else if(nl.includes('tablet'))skuMap[n].fmt='tabletas';});});
   const sortedSkus=Object.entries(skuMap).sort((a,b)=>b[1].rev-a[1].rev);
@@ -251,12 +301,10 @@ function renderAll(){
   const fmtGroups={gummies:0,capsulas:0,combo:0,tabletas:0,otro:0};sortedSkus.forEach(([,d])=>fmtGroups[d.fmt]=(fmtGroups[d.fmt]||0)+d.rev);
   const ticketByProd=sortedSkus.map(([n,d])=>({name:n,ticket:d.orders?d.rev/d.orders:0,rev:d.rev,qty:d.qty})).sort((a,b)=>b.ticket-a.ticket);
  
-  // Productos comprados juntos
   const pairMap={};
   paid.forEach(o=>{const prods=(o.products||[]).map(it=>getName(it.name)).filter(Boolean);for(let i=0;i<prods.length;i++)for(let j=i+1;j<prods.length;j++){const key=[prods[i],prods[j]].sort().join(' + ');pairMap[key]=(pairMap[key]||0)+1;}});
   const topPairs=Object.entries(pairMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
  
-  // Clientes
   const custMap={};
   paid.forEach(o=>{const e=o.customer?.email||o.contact_email;if(!e)return;if(!custMap[e])custMap[e]={name:o.customer?.name||o.contact_name||e,email:e,orders:[],rev:0,last:o.created_at,first:o.created_at,identification:o.customer?.identification||''};custMap[e].orders.push(o);custMap[e].rev+=parseFloat(o.total||0);if(o.created_at>custMap[e].last)custMap[e].last=o.created_at;if(o.created_at<custMap[e].first)custMap[e].first=o.created_at;});
   const custList=Object.values(custMap);
@@ -274,7 +322,6 @@ function renderAll(){
   const ltv12=avgTicket*(365/avgDaysBetween);
   const atRisk=custList.filter(c=>{const days=(now-new Date(c.last))/(1000*3600*24);return days>=60&&days<=180;}).sort((a,b)=>b.rev-a.rev).slice(0,15);
  
-  // Recompra
   const allMonthKeys=Object.keys(monthlyMap).sort();
   const recompraData=allMonthKeys.map(k=>{
     const[y,m]=k.split('-'),monthStart=new Date(parseInt(y),parseInt(m)-1,1),monthEnd=new Date(parseInt(y),parseInt(m),1);
@@ -285,7 +332,6 @@ function renderAll(){
   });
   if(!SELECTED_RECOMPRA_MONTH&&recompraData.length)SELECTED_RECOMPRA_MONTH=recompraData[recompraData.length-1].k;
  
-  // Suscripciones
   const subPaid=ALL_ORDERS.filter(o=>o.is_subscription&&o.payment_status==='paid');
   const subInitial=ALL_ORDERS.filter(o=>o.is_subscription_initial&&o.payment_status==='paid');
   const subEmails=new Set(subPaid.map(o=>o.customer?.email).filter(Boolean)),subCount=subEmails.size;
@@ -299,23 +345,17 @@ function renderAll(){
   const subSkuMap={};subPaid.forEach(o=>{(o.products||[]).forEach(it=>{const n=getName(it.name);if(!subSkuMap[n])subSkuMap[n]={qty:0,rev:0};subSkuMap[n].qty+=it.quantity||1;subSkuMap[n].rev+=parseFloat(it.price||0)*(it.quantity||1);});});
   const sortedSubSkus=Object.entries(subSkuMap).sort((a,b)=>b[1].rev-a[1].rev).slice(0,6);
  
-  // Canales
   const utmMap={};orders.forEach(o=>{const utm=o.customer_visit?.utm_parameters,source=utm?.utm_source||'directo',medium=utm?.utm_medium||'',key=medium?source+' / '+medium:source;if(!utmMap[key])utmMap[key]={orders:0,rev:0};utmMap[key].orders++;if(o.payment_status==='paid')utmMap[key].rev+=parseFloat(o.total||0);});
   const sortedUtm=Object.entries(utmMap).sort((a,b)=>b[1].rev-a[1].rev).slice(0,8),maxUtmRev=Math.max(...sortedUtm.map(s=>s[1].rev),1);
  
-  // Provincias
   const provMap={};paid.forEach(o=>{const p=o.billing_province||o.shipping_address?.province||'Desconocida';provMap[p]=(provMap[p]||0)+1;});
   const sortedProv=Object.entries(provMap).sort((a,b)=>b[1]-a[1]),maxProv=Math.max(...sortedProv.map(s=>s[1]),1);
  
-  // Stock
   const outOfStock=ALL_PRODUCTS.filter(p=>p.variants?.[0]?.stock===0);
   const criticalStock=ALL_PRODUCTS.filter(p=>{const s=p.variants?.[0]?.stock;return s>0&&s<=5;});
   const warningStock=ALL_PRODUCTS.filter(p=>{const s=p.variants?.[0]?.stock;return s>5&&s<=10;});
- 
-  // Abandonados
   const abandRev=ALL_ABANDONED.reduce((s,c)=>s+parseFloat(c.total||c.subtotal||0),0);
  
-  // Demografía
   const demoData=(()=>{
     const custD={};paid.forEach(o=>{const email=o.customer?.email||o.contact_email;if(!email)return;if(!custD[email]){const name=o.customer?.name||o.contact_name||'';custD[email]={name,email,gender:inferGender(name),orders:0,rev:0,province:o.billing_province||o.shipping_address?.province||'',city:o.shipping_address?.city||o.billing_address?.city||'',phone:o.customer?.phone||o.contact_phone||'',identification:o.customer?.identification||'',first:o.created_at,last:o.created_at};}custD[email].orders++;custD[email].rev+=parseFloat(o.total||0);if(o.created_at>custD[email].last)custD[email].last=o.created_at;});
     const cl=Object.values(custD),tot=cl.length;if(!tot)return null;
@@ -336,13 +376,15 @@ function renderAll(){
     return{total:tot,classified,coveragePct:covPct,gCount:gC,gRev:gR,avgTicketM:avgTM,avgTicketF:avgTF,topCities,topProvs,maxProvD,topDomains,newMonthLabels:nml,newMonthVals:nmv,withPhone,withId,ageMap,ageRanges,maxAge,ageCoveragePct:Math.round(ageCl/tot*100),ageClassified:ageCl,ageCrossData};
   })();
  
-  // ════════════ HTML ════════════
+  // B2B consolidated revenue for resumen KPI
+  const b2bTotalCobrado = FIN_B2B.filter(b=>b.status==='Cobrado').reduce((s,b)=>s+parseFloat(b.monto||0),0);
+ 
   document.getElementById('main').innerHTML=`
   <div id="sec-resumen" class="section active">
     <div class="sec-label">Resumen general</div>
     <div class="kpis">
       <div class="kpi"><div class="kpi-label">Ingresos este mes</div><div class="kpi-value">${fmt(revM)}</div><div class="kpi-sub ${growth!==null&&parseFloat(growth)>=0?'up':'down'}">${growth!==null?(parseFloat(growth)>=0?'▲':'▼')+' '+Math.abs(growth)+'% vs mes ant.':'Primer mes'}</div></div>
-      <div class="kpi"><div class="kpi-label">Ingresos totales</div><div class="kpi-value">${fmt(totalRev)}</div><div class="kpi-sub">${fmtN(paid.length)} pedidos pagados</div></div>
+      <div class="kpi"><div class="kpi-label">Revenue total</div><div class="kpi-value">${fmt(totalRev+b2bTotalCobrado)}</div><div class="kpi-sub">B2C ${fmt(totalRev)} + B2B ${fmt(b2bTotalCobrado)}</div></div>
       <div class="kpi"><div class="kpi-label">Ticket promedio</div><div class="kpi-value">${fmt(avgTicket)}</div><div class="kpi-sub">por pedido pagado</div></div>
       <div class="kpi"><div class="kpi-label">Clientes únicos</div><div class="kpi-value">${fmtN(customers.length)}</div><div class="kpi-sub">${retRate}% recurrentes</div></div>
       <div class="kpi"><div class="kpi-label">Pedidos este mes</div><div class="kpi-value">${fmtN(pM.length)}</div><div class="kpi-sub">${fmtN(pL.length)} el mes pasado</div></div>
@@ -524,6 +566,104 @@ function renderAll(){
     </div>
     <div class="card"><div class="card-title">Carritos abandonados recientes</div><table class="tbl"><thead><tr><th>Fecha</th><th>Cliente</th><th>Email</th><th>Monto</th><th>Productos</th></tr></thead><tbody>${[...ALL_ABANDONED].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,30).map(c=>`<tr><td style="color:#999;font-size:11px;white-space:nowrap">${new Date(c.created_at).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'})}</td><td style="max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.contact_name||c.customer?.name||'—'}</td><td style="font-size:11px;color:#999;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.contact_email||c.customer?.email||'—'}</td><td style="font-weight:600">${fmt(parseFloat(c.total||c.subtotal||0))}</td><td style="color:#999;font-size:11px">${(c.products||[]).map(p=>getName(p.name)).slice(0,2).join(', ')}</td></tr>`).join('')}</tbody></table></div>`}
   </div>
+ 
+  <!-- ── FINANCES SECTIONS ── -->
+ 
+  <div id="sec-finanzas" class="section">
+    <div class="sec-label">P&L Consolidado</div>
+    <div class="month-tabs" id="pl-month-tabs"></div>
+    <div class="grid2">
+      <div id="pl-waterfall-container"></div>
+      <div>
+        <div class="kpis" style="grid-template-columns:1fr 1fr">
+          <div class="kpi"><div class="kpi-label">Revenue total</div><div class="kpi-value" id="pl-kpi-rev">—</div><div class="kpi-sub">B2C + B2B</div></div>
+          <div class="kpi"><div class="kpi-label">Gross margin</div><div class="kpi-value" id="pl-kpi-gm">—</div><div class="kpi-sub">después de COGS</div></div>
+          <div class="kpi"><div class="kpi-label">EBITDA</div><div class="kpi-value" id="pl-kpi-ebitda">—</div><div class="kpi-sub">margen operativo</div></div>
+          <div class="kpi"><div class="kpi-label">Mktg / Revenue</div><div class="kpi-value" id="pl-kpi-mktg">—</div><div class="kpi-sub">% del total</div></div>
+        </div>
+        <div class="card" style="margin-top:0">
+          <div class="card-title">Evolución mensual</div>
+          <div class="chart-wrap" style="height:200px"><canvas id="chartPL"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+ 
+  <div id="sec-b2b" class="section">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <div class="sec-label" style="margin:0">Ventas B2B</div>
+      <button class="btn-primary" onclick="openB2BModal()">+ Nueva venta</button>
+    </div>
+    <div class="kpis" id="b2b-kpis"></div>
+    <div class="card"><table class="tbl">
+      <thead><tr><th>Fecha</th><th>Cliente</th><th>Productos</th><th>Uds.</th><th>Total ARS</th><th>Estado</th><th></th></tr></thead>
+      <tbody id="b2b-tbody"></tbody>
+    </table></div>
+  </div>
+ 
+  <div id="sec-gastos" class="section">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <div class="sec-label" style="margin:0">Gastos operativos</div>
+      <button class="btn-primary" onclick="openGastoModal()">+ Nuevo gasto</button>
+    </div>
+    <div class="kpis" id="gastos-kpis"></div>
+    <div class="card">
+      <div class="card-title">Gastos por categoría — mes actual</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="chartGastos"></canvas></div>
+    </div>
+    <div class="card"><table class="tbl">
+      <thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Total ARS</th><th></th></tr></thead>
+      <tbody id="gastos-tbody"></tbody>
+    </table></div>
+  </div>
+ 
+  <div id="sec-marketing-plan" class="section">
+    <div class="sec-label">Plan de Marketing — Budget vs Actual</div>
+    <div class="month-tabs" id="mktg-month-tabs"></div>
+    <div class="kpis" id="mktg-kpis"></div>
+    <div class="card">
+      <div class="card-title">Budget vs Actual por grupo</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="chartMktgPlan"></canvas></div>
+    </div>
+    <div class="card">
+      <div id="mktg-plan-table"></div>
+      <div style="display:flex;gap:8px;margin-top:1rem;flex-wrap:wrap">
+        <button class="btn-primary" onclick="saveMktgPlan()">Guardar cambios</button>
+        <button class="btn-secondary" onclick="addMktgMonth()">+ Agregar mes</button>
+      </div>
+    </div>
+  </div>
+ 
+  <div id="sec-costos" class="section">
+    <div class="sec-label">Costos de Producto</div>
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;flex-wrap:wrap">
+        <span style="font-size:12px;color:#999">Tipo de cambio ARS/USD:</span>
+        <input type="range" min="800" max="3000" step="50" id="tc-slider" style="width:160px" oninput="document.getElementById('tc-val').textContent=this.value;recalcCostos()">
+        <span style="font-weight:700;font-size:14px" id="tc-val">1400</span>
+        <button class="btn-sm" onclick="saveCostos()">Guardar costos</button>
+      </div>
+      <table class="tbl">
+        <thead><tr><th>SKU</th><th>FOB USD</th><th>Landed COGS (ARS)</th><th>Precio venta (ARS)</th><th>Gross margin</th></tr></thead>
+        <tbody id="costos-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+ 
+  <div id="sec-pagos-prov" class="section">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <div class="sec-label" style="margin:0">Cuentas por pagar</div>
+      <button class="btn-primary" onclick="openProvModal()">+ Nueva factura</button>
+    </div>
+    <div class="kpis" id="prov-kpis"></div>
+    <div class="sec-label">Pendientes</div>
+    <div id="prov-pending"></div>
+    <div class="sec-label">Historial completo</div>
+    <div class="card"><table class="tbl">
+      <thead><tr><th>Fecha</th><th>Proveedor</th><th>Concepto</th><th>Total ARS</th><th>Vencimiento</th><th>Estado</th><th></th></tr></thead>
+      <tbody id="prov-tbody"></tbody>
+    </table></div>
+  </div>
   `;
  
   document.getElementById('sync-time').textContent='Actualizado: '+new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
@@ -553,6 +693,9 @@ function renderAll(){
     }
     setTimeout(()=>buildMap(provMap),200);
   },150);
+ 
+  // Render finances after DOM is ready
+  renderFinances();
 }
  
 async function init(){
@@ -566,6 +709,421 @@ async function init(){
     document.getElementById('main').innerHTML='<div class="error">Error al conectar: '+e.message+'. Esperá 40 segundos y recargá.</div>';
     document.getElementById('sync-time').textContent='Error de conexión';
   }
+}
+ 
+// ═══════════════════════════════════════════════════════════
+// FINANCES MODULE
+// ═══════════════════════════════════════════════════════════
+ 
+function finLoad(key,def){try{return JSON.parse(localStorage.getItem('bl_fin_'+key))??def;}catch(e){return def;}}
+function finSave(key,val){localStorage.setItem('bl_fin_'+key,JSON.stringify(val));}
+ 
+const DEFAULT_COSTOS=[
+  {sku:'Ashwa Caps',    fob:6.77, precio:67000},
+  {sku:'Ashwa Gummies', fob:7.89, precio:67000},
+  {sku:'LM Caps',       fob:6.93, precio:67000},
+  {sku:'LM Gummies',    fob:8.36, precio:67000},
+  {sku:'Reishi',        fob:7.35, precio:67000},
+  {sku:'Cordyceps',     fob:8.22, precio:67000},
+  {sku:'Tremella',      fob:6.97, precio:67000},
+  {sku:'Magnesio',      fob:7.07, precio:67000},
+];
+ 
+const DEFAULT_PROV=[
+  {id:'p1',fecha:'2026-03-31',proveedor:'Paz',          concepto:'Honorarios', monto:500000, vence:'2026-05-01',status:'Pendiente',notas:'en calendario figura pendiente'},
+  {id:'p2',fecha:'2026-04-08',proveedor:'Mary Fotógrafa',concepto:'Fotografía', monto:310000, vence:'2026-04-24',status:'Pendiente',notas:'fin de mes'},
+  {id:'p3',fecha:'2026-04-01',proveedor:'Sergio',       concepto:'Fee',        monto:500000, vence:'2026-04-25',status:'Pendiente',notas:''},
+  {id:'p4',fecha:'2026-03-01',proveedor:'Duran',        concepto:'Gestoría',   monto:812000, vence:'',          status:'Pendiente',notas:'esperamos seguimiento'},
+];
+ 
+const MKTG_STRUCTURE=[
+  {group:'Influencers',    lines:['Fee Agencia','Fee Influencers','NOP','Expos']},
+  {group:'Mktg Digital',   lines:['Automation/Email','Wapp Carritos','Larentools','Perfit','Vibrander','UGC','Pauta','Evolución Web']},
+  {group:'Prensa',         lines:['Total Prensa']},
+  {group:'In-House',       lines:['Luli','Diseñadora Vicky','Paula','Otros In-House']},
+  {group:'Other',          lines:['Fotografía','Videos','Impresiones','Packaging','Otros']},
+  {group:'Sin Cargo / USA',lines:['Sin Cargo','USA (neto)']},
+];
+ 
+const GASTO_CATS=['Producción / COGS','Logística / Distribución','Admin / Contadora','Gestoría / Legal','Impuestos','Otros'];
+ 
+let FIN_B2B    = finLoad('b2b',[]);
+let FIN_GASTOS = finLoad('gastos',[]);
+let FIN_COSTOS = finLoad('costos',DEFAULT_COSTOS);
+let FIN_TC     = finLoad('tc',1400);
+let FIN_PROV   = finLoad('prov',DEFAULT_PROV);
+let FIN_MKTG   = finLoad('mktg',{});
+let FIN_PL_MONTH = null;
+ 
+const nowStr=()=>new Date().toISOString().slice(0,10);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const mLabel=k=>{const[y,m]=k.split('-');return['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][parseInt(m)-1]+"'"+y.slice(2);};
+const currentMonth=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');};
+const allMonths=()=>{
+  const set=new Set();
+  const now=new Date();
+  for(let i=11;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);set.add(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));}
+  [...FIN_B2B,...FIN_GASTOS].forEach(r=>{if(r.fecha)set.add(r.fecha.slice(0,7));});
+  Object.keys(FIN_MKTG).forEach(k=>set.add(k));
+  return[...set].sort();
+};
+ 
+function b2cRevByMonth(){
+  const map={};
+  (typeof FILTERED_ORDERS!=='undefined'?FILTERED_ORDERS:[]).filter(o=>o.payment_status==='paid').forEach(o=>{const k=o.created_at?.slice(0,7);if(k)map[k]=(map[k]||0)+parseFloat(o.total||0);});
+  return map;
+}
+function b2bRevByMonth(){
+  const map={};
+  FIN_B2B.filter(b=>b.status==='Cobrado').forEach(b=>{const k=b.fecha?.slice(0,7);if(k)map[k]=(map[k]||0)+parseFloat(b.monto||0);});
+  return map;
+}
+function cogsByMonth(){
+  const map={};
+  const tc=FIN_TC;
+  const avgFOB=FIN_COSTOS.reduce((s,c)=>s+c.fob,0)/FIN_COSTOS.length;
+  const avgLanded=avgFOB*tc*2.3;
+  (typeof FILTERED_ORDERS!=='undefined'?FILTERED_ORDERS:[]).filter(o=>o.payment_status==='paid').forEach(o=>{
+    const k=o.created_at?.slice(0,7);if(!k)return;
+    const units=(o.products||[]).reduce((s,p)=>s+(p.quantity||1),0);
+    map[k]=(map[k]||0)+units*avgLanded;
+  });
+  FIN_B2B.filter(b=>b.status==='Cobrado').forEach(b=>{
+    const k=b.fecha?.slice(0,7);if(!k)return;
+    map[k]=(map[k]||0)+(parseInt(b.unidades||1))*avgLanded;
+  });
+  return map;
+}
+function mktgByMonth(){
+  const map={};
+  Object.entries(FIN_MKTG).forEach(([month,lines])=>{
+    let total=0;Object.values(lines).forEach(v=>{total+=parseFloat(v||0);});
+    if(total)map[month]=total;
+  });
+  return map;
+}
+function opexByMonth(){
+  const map={};
+  FIN_GASTOS.forEach(g=>{const k=g.fecha?.slice(0,7);if(k)map[k]=(map[k]||0)+parseFloat(g.monto||0);});
+  return map;
+}
+ 
+function renderFinPL(){
+  const months=allMonths();
+  if(!FIN_PL_MONTH||!months.includes(FIN_PL_MONTH))FIN_PL_MONTH=currentMonth();
+  const tabsEl=document.getElementById('pl-month-tabs');
+  if(!tabsEl)return;
+  tabsEl.innerHTML=months.slice(-8).map(m=>`<button class="month-tab${m===FIN_PL_MONTH?' active':''}" onclick="FIN_PL_MONTH='${m}';renderFinPL()">${mLabel(m)}</button>`).join('');
+  const b2c=b2cRevByMonth(),b2b=b2bRevByMonth(),cogs=cogsByMonth(),mktg=mktgByMonth(),opex=opexByMonth(),m=FIN_PL_MONTH;
+  const revB2C=b2c[m]||0,revB2B=b2b[m]||0,revTotal=revB2C+revB2B;
+  const cogsVal=cogs[m]||0,grossP=revTotal-cogsVal;
+  const grossPct=revTotal?(grossP/revTotal*100).toFixed(1):0;
+  const mktgVal=mktg[m]||0,opexVal=opex[m]||0;
+  const ebitda=grossP-mktgVal-opexVal;
+  const ebitdaPct=revTotal?(ebitda/revTotal*100).toFixed(1):0;
+  const mktgPct=revTotal?(mktgVal/revTotal*100).toFixed(1):0;
+  const el=id=>document.getElementById(id);
+  if(el('pl-kpi-rev'))el('pl-kpi-rev').textContent=fmt(revTotal);
+  if(el('pl-kpi-gm'))el('pl-kpi-gm').textContent=grossPct+'%';
+  if(el('pl-kpi-ebitda')){el('pl-kpi-ebitda').textContent=ebitdaPct+'%';el('pl-kpi-ebitda').className='kpi-value '+(ebitda>=0?'up':'down');}
+  if(el('pl-kpi-mktg'))el('pl-kpi-mktg').textContent=mktgPct+'%';
+  const wf=el('pl-waterfall-container');
+  if(wf)wf.innerHTML=`<div class="pl-waterfall">
+    <div class="pl-row header"><span>Línea</span><span>ARS</span></div>
+    <div class="pl-row"><span>Ventas B2C (TiendaNube)</span><span class="pl-val" style="color:#1D9E75">${fmt(revB2C)}</span></div>
+    <div class="pl-row"><span>Ventas B2B</span><span class="pl-val" style="color:#1D9E75">${fmt(revB2B)}</span></div>
+    <div class="pl-row subtotal"><span>= Revenue total</span><span class="pl-val">${fmt(revTotal)}</span></div>
+    <div class="pl-row negative"><span>− COGS (estimado)</span><span class="pl-val">${fmt(cogsVal)}</span></div>
+    <div class="pl-row subtotal"><span>= Gross Profit <span class="pl-pct">${grossPct}%</span></span><span class="pl-val" style="color:${grossP>=0?'#1D9E75':'#D85A30'}">${fmt(grossP)}</span></div>
+    <div class="pl-row negative"><span>− Marketing <span class="pl-pct">${mktgPct}%</span></span><span class="pl-val">${fmt(mktgVal)}</span></div>
+    <div class="pl-row negative"><span>− Gastos operativos</span><span class="pl-val">${fmt(opexVal)}</span></div>
+    <div class="pl-row total"><span>= EBITDA <span class="pl-pct">${ebitdaPct}%</span></span><span class="pl-val" style="color:${ebitda>=0?'#1D9E75':'#D85A30'}">${fmt(ebitda)}</span></div>
+  </div>`;
+  const last6=months.slice(-6);
+  mkChart('chartPL','bar',last6.map(mLabel),[
+    {label:'Revenue',  data:last6.map(k=>(b2c[k]||0)+(b2b[k]||0)),  backgroundColor:'rgba(29,158,117,0.2)',borderColor:'#1D9E75',borderWidth:2,borderRadius:4},
+    {label:'Gross P.', data:last6.map(k=>(b2c[k]||0)+(b2b[k]||0)-(cogs[k]||0)), backgroundColor:'#5DCAA5',borderRadius:4},
+    {label:'EBITDA',   data:last6.map(k=>(b2c[k]||0)+(b2b[k]||0)-(cogs[k]||0)-(mktg[k]||0)-(opex[k]||0)), backgroundColor:'#185FA5',borderRadius:4},
+  ],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:tickY}}},plugins:{legend:{display:true,position:'bottom',labels:{font:{size:11},boxWidth:10,padding:8}}}});
+}
+ 
+function renderFinB2B(){
+  const total=FIN_B2B.reduce((s,b)=>s+parseFloat(b.monto||0),0);
+  const cobrado=FIN_B2B.filter(b=>b.status==='Cobrado').reduce((s,b)=>s+parseFloat(b.monto||0),0);
+  const pending=FIN_B2B.filter(b=>b.status==='Pendiente').reduce((s,b)=>s+parseFloat(b.monto||0),0);
+  const kpis=document.getElementById('b2b-kpis');
+  if(kpis)kpis.innerHTML=`
+    <div class="kpi"><div class="kpi-label">Facturas B2B</div><div class="kpi-value">${fmtN(FIN_B2B.length)}</div><div class="kpi-sub">total registradas</div></div>
+    <div class="kpi"><div class="kpi-label">Revenue B2B</div><div class="kpi-value up">${fmt(cobrado)}</div><div class="kpi-sub">cobrado</div></div>
+    <div class="kpi"><div class="kpi-label">Por cobrar</div><div class="kpi-value${pending>0?' down':''}">${fmt(pending)}</div><div class="kpi-sub">pendiente</div></div>
+    <div class="kpi"><div class="kpi-label">Ticket prom.</div><div class="kpi-value">${FIN_B2B.length?fmt(total/FIN_B2B.length):'—'}</div><div class="kpi-sub">por factura</div></div>`;
+  const tbody=document.getElementById('b2b-tbody');
+  if(!tbody)return;
+  if(!FIN_B2B.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#999;padding:1.5rem">Sin ventas B2B registradas</td></tr>';return;}
+  tbody.innerHTML=[...FIN_B2B].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')).map(b=>`
+    <tr>
+      <td style="color:#999;font-size:11px;white-space:nowrap">${b.fecha}</td>
+      <td style="font-weight:600">${b.cliente}</td>
+      <td style="font-size:11px;color:#666;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${b.productos||'—'}</td>
+      <td style="color:#999">${fmtN(b.unidades||0)}</td>
+      <td style="font-weight:600">${fmt(parseFloat(b.monto||0))}</td>
+      <td>${b.status==='Cobrado'?'<span class="badge b-paid">Cobrado</span>':'<span class="badge b-pending">Pendiente</span>'}</td>
+      <td><button class="btn-danger" onclick="deleteB2B('${b.id}')">✕</button></td>
+    </tr>`).join('');
+}
+ 
+window.deleteB2B=function(id){if(!confirm('¿Eliminar?'))return;FIN_B2B=FIN_B2B.filter(b=>b.id!==id);finSave('b2b',FIN_B2B);renderFinB2B();};
+ 
+window.openB2BModal=function(){
+  const modal=document.createElement('div');modal.className='fin-modal';modal.id='b2b-modal';
+  modal.innerHTML=`<div class="fin-modal-box">
+    <div class="fin-modal-title">Nueva venta B2B</div>
+    <div class="fin-row2">
+      <div class="fin-field"><label>Fecha</label><input type="date" id="b2b-fecha" value="${nowStr()}"></div>
+      <div class="fin-field"><label>Estado</label><select id="b2b-status"><option>Pendiente</option><option>Cobrado</option></select></div>
+    </div>
+    <div class="fin-field"><label>Cliente / Empresa</label><input type="text" id="b2b-cliente" placeholder="Ej: GreenCo, Holofood..."></div>
+    <div class="fin-field"><label>Productos / Descripción</label><input type="text" id="b2b-productos" placeholder="Ej: LM Caps x20, Reishi x10"></div>
+    <div class="fin-row2">
+      <div class="fin-field"><label>Unidades totales</label><input type="number" id="b2b-uds" placeholder="0" min="0"></div>
+      <div class="fin-field"><label>Total ARS</label><input type="number" id="b2b-monto" placeholder="0" min="0"></div>
+    </div>
+    <div class="fin-field"><label>Notas</label><textarea id="b2b-notas" placeholder="Observaciones opcionales"></textarea></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">
+      <button class="btn-secondary" onclick="document.getElementById('b2b-modal').remove()">Cancelar</button>
+      <button class="btn-primary" onclick="saveB2B()">Guardar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+};
+ 
+window.saveB2B=function(){
+  const e={id:uid(),fecha:document.getElementById('b2b-fecha').value,cliente:document.getElementById('b2b-cliente').value.trim(),productos:document.getElementById('b2b-productos').value.trim(),unidades:parseInt(document.getElementById('b2b-uds').value)||0,monto:parseFloat(document.getElementById('b2b-monto').value)||0,status:document.getElementById('b2b-status').value,notas:document.getElementById('b2b-notas').value.trim()};
+  if(!e.cliente||!e.monto){alert('Cliente y monto son requeridos');return;}
+  FIN_B2B.push(e);finSave('b2b',FIN_B2B);document.getElementById('b2b-modal').remove();renderFinB2B();
+};
+ 
+function renderFinGastos(){
+  const now=currentMonth();
+  const thisMonth=FIN_GASTOS.filter(g=>g.fecha?.slice(0,7)===now);
+  const totalMonth=thisMonth.reduce((s,g)=>s+parseFloat(g.monto||0),0);
+  const totalAll=FIN_GASTOS.reduce((s,g)=>s+parseFloat(g.monto||0),0);
+  const catTotals={};thisMonth.forEach(g=>{catTotals[g.categoria]=(catTotals[g.categoria]||0)+parseFloat(g.monto||0);});
+  const kpis=document.getElementById('gastos-kpis');
+  if(kpis)kpis.innerHTML=`
+    <div class="kpi"><div class="kpi-label">Gastos este mes</div><div class="kpi-value down">${fmt(totalMonth)}</div><div class="kpi-sub">${fmtN(thisMonth.length)} registros</div></div>
+    <div class="kpi"><div class="kpi-label">Total histórico</div><div class="kpi-value">${fmt(totalAll)}</div><div class="kpi-sub">${fmtN(FIN_GASTOS.length)} registros</div></div>
+    ${GASTO_CATS.slice(0,2).map(c=>`<div class="kpi"><div class="kpi-label">${c}</div><div class="kpi-value">${fmt(catTotals[c]||0)}</div><div class="kpi-sub">este mes</div></div>`).join('')}`;
+  const catLabels=Object.keys(catTotals),catVals=Object.values(catTotals).map(v=>Math.round(v));
+  if(catLabels.length)mkChart('chartGastos','doughnut',catLabels,[{data:catVals,backgroundColor:['#1D9E75','#5DCAA5','#185FA5','#EF9F27','#D85A30','#B4B2A9'],borderWidth:0}],{plugins:{legend:{display:true,position:'bottom',labels:{font:{size:11},boxWidth:10,padding:8}}}});
+  const tbody=document.getElementById('gastos-tbody');
+  if(!tbody)return;
+  if(!FIN_GASTOS.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:#999;padding:1.5rem">Sin gastos registrados</td></tr>';return;}
+  tbody.innerHTML=[...FIN_GASTOS].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')).map(g=>`
+    <tr>
+      <td style="color:#999;font-size:11px;white-space:nowrap">${g.fecha}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${g.concepto}</td>
+      <td><span class="badge b-open" style="font-size:10px">${g.categoria}</span></td>
+      <td style="font-weight:600">${fmt(parseFloat(g.monto||0))}</td>
+      <td><button class="btn-danger" onclick="deleteGasto('${g.id}')">✕</button></td>
+    </tr>`).join('');
+}
+ 
+window.deleteGasto=function(id){if(!confirm('¿Eliminar?'))return;FIN_GASTOS=FIN_GASTOS.filter(g=>g.id!==id);finSave('gastos',FIN_GASTOS);renderFinGastos();};
+ 
+window.openGastoModal=function(){
+  const modal=document.createElement('div');modal.className='fin-modal';modal.id='gasto-modal';
+  modal.innerHTML=`<div class="fin-modal-box">
+    <div class="fin-modal-title">Nuevo gasto operativo</div>
+    <div class="fin-row2">
+      <div class="fin-field"><label>Fecha</label><input type="date" id="g-fecha" value="${nowStr()}"></div>
+      <div class="fin-field"><label>Categoría</label><select id="g-cat">${GASTO_CATS.map(c=>`<option>${c}</option>`).join('')}</select></div>
+    </div>
+    <div class="fin-field"><label>Concepto</label><input type="text" id="g-concepto" placeholder="Ej: Andreani Abril, Depósito Jucaval..."></div>
+    <div class="fin-field"><label>Proveedor (opcional)</label><input type="text" id="g-proveedor" placeholder="Ej: Oriola, Jucaval..."></div>
+    <div class="fin-field"><label>Total ARS</label><input type="number" id="g-monto" placeholder="0" min="0"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">
+      <button class="btn-secondary" onclick="document.getElementById('gasto-modal').remove()">Cancelar</button>
+      <button class="btn-primary" onclick="saveGasto()">Guardar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+};
+ 
+window.saveGasto=function(){
+  const e={id:uid(),fecha:document.getElementById('g-fecha').value,concepto:document.getElementById('g-concepto').value.trim(),categoria:document.getElementById('g-cat').value,proveedor:document.getElementById('g-proveedor').value.trim(),monto:parseFloat(document.getElementById('g-monto').value)||0};
+  if(!e.concepto||!e.monto){alert('Concepto y monto son requeridos');return;}
+  FIN_GASTOS.push(e);finSave('gastos',FIN_GASTOS);document.getElementById('gasto-modal').remove();renderFinGastos();
+};
+ 
+function renderFinMktg(){
+  const months=allMonths().slice(-8);
+  const tabsEl=document.getElementById('mktg-month-tabs');
+  if(!tabsEl)return;
+  let am=tabsEl.dataset.active||currentMonth();
+  if(!months.includes(am))am=months[months.length-1];
+  tabsEl.dataset.active=am;
+  tabsEl.innerHTML=months.map(m=>`<button class="month-tab${m===am?' active':''}" onclick="this.parentElement.dataset.active='${m}';renderFinMktg()">${mLabel(m)}</button>`).join('');
+  if(!FIN_MKTG[am])FIN_MKTG[am]={};
+  const md=FIN_MKTG[am];
+  let totalBudget=0,totalActual=0;
+  MKTG_STRUCTURE.forEach(({lines})=>lines.forEach(l=>{totalBudget+=parseFloat(md[l+'_b']||0);totalActual+=parseFloat(md[l+'_a']||0);}));
+  const variance=totalActual-totalBudget;
+  const kpis=document.getElementById('mktg-kpis');
+  if(kpis)kpis.innerHTML=`
+    <div class="kpi"><div class="kpi-label">Budget total</div><div class="kpi-value">${fmt(totalBudget)}</div><div class="kpi-sub">${mLabel(am)}</div></div>
+    <div class="kpi"><div class="kpi-label">Actual total</div><div class="kpi-value">${fmt(totalActual)}</div><div class="kpi-sub">ejecutado</div></div>
+    <div class="kpi"><div class="kpi-label">Variación</div><div class="kpi-value ${variance>0?'down':'up'}">${variance>0?'+':''}${fmt(variance)}</div><div class="kpi-sub">${variance>0?'sobre presupuesto':'bajo presupuesto'}</div></div>
+    <div class="kpi"><div class="kpi-label">Ejecución</div><div class="kpi-value">${totalBudget?(totalActual/totalBudget*100).toFixed(0)+'%':'—'}</div><div class="kpi-sub">del budget</div></div>`;
+  const grpLabels=MKTG_STRUCTURE.map(g=>g.group);
+  const grpBudget=MKTG_STRUCTURE.map(({lines})=>Math.round(lines.reduce((s,l)=>s+parseFloat(md[l+'_b']||0),0)));
+  const grpActual=MKTG_STRUCTURE.map(({lines})=>Math.round(lines.reduce((s,l)=>s+parseFloat(md[l+'_a']||0),0)));
+  mkChart('chartMktgPlan','bar',grpLabels,[
+    {label:'Budget',data:grpBudget,backgroundColor:'#B5D4F4',borderRadius:3},
+    {label:'Actual',data:grpActual,backgroundColor:'#378ADD',borderRadius:3},
+  ],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:tickY}}},plugins:{legend:{display:true,position:'bottom',labels:{font:{size:11},boxWidth:10,padding:8}}}});
+  let html='';
+  MKTG_STRUCTURE.forEach(({group,lines})=>{
+    html+=`<div class="mktg-section"><div class="mktg-section-title">${group}</div>
+      <div class="mktg-line header"><span>Línea</span><span style="text-align:right">Budget ARS</span><span style="text-align:right">Actual ARS</span><span style="text-align:right">Var.</span></div>`;
+    lines.forEach(l=>{
+      const b=parseFloat(md[l+'_b']||0),a=parseFloat(md[l+'_a']||0),v=a-b;
+      const vClass=v>0?'variance-neg':v<0?'variance-pos':'';
+      const vStr=(b||a)?`<span class="${vClass}">${v>0?'+':''}${fmt(v)}</span>`:'—';
+      html+=`<div class="mktg-line">
+        <span style="color:#555">${l}</span>
+        <input class="mktg-input" type="number" data-key="${l}_b" value="${md[l+'_b']||''}" placeholder="0" onchange="FIN_MKTG['${am}']['${l}_b']=parseFloat(this.value)||0">
+        <input class="mktg-input" type="number" data-key="${l}_a" value="${md[l+'_a']||''}" placeholder="0" onchange="FIN_MKTG['${am}']['${l}_a']=parseFloat(this.value)||0">
+        <span style="text-align:right">${vStr}</span>
+      </div>`;
+    });
+    const gB=lines.reduce((s,l)=>s+parseFloat(md[l+'_b']||0),0),gA=lines.reduce((s,l)=>s+parseFloat(md[l+'_a']||0),0);
+    html+=`<div class="mktg-total-row"><span>Total ${group}</span><span style="text-align:right">${fmt(gB)}</span><span style="text-align:right">${fmt(gA)}</span><span></span></div></div>`;
+  });
+  const tbl=document.getElementById('mktg-plan-table');
+  if(tbl)tbl.innerHTML=html;
+}
+ 
+window.saveMktgPlan=function(){
+  finSave('mktg',FIN_MKTG);
+  if(document.getElementById('sec-finanzas')?.classList.contains('active'))renderFinPL();
+  alert('Plan de marketing guardado ✓');
+};
+ 
+window.addMktgMonth=function(){
+  const m=prompt('Ingresá el mes en formato YYYY-MM (ej: 2026-05):');
+  if(!m||!/^\d{4}-\d{2}$/.test(m))return;
+  if(!FIN_MKTG[m])FIN_MKTG[m]={};
+  const tabsEl=document.getElementById('mktg-month-tabs');
+  if(tabsEl)tabsEl.dataset.active=m;
+  renderFinMktg();
+};
+ 
+function renderFinCostos(){
+  const tc=FIN_TC;
+  const slider=document.getElementById('tc-slider'),tcVal=document.getElementById('tc-val');
+  if(slider){slider.value=tc;if(tcVal)tcVal.textContent=tc;}
+  const tbody=document.getElementById('costos-tbody');
+  if(!tbody)return;
+  tbody.innerHTML=FIN_COSTOS.map((c,i)=>{
+    const landed=c.fob*tc*2.3,margin=c.precio?((c.precio-landed)/c.precio*100).toFixed(1):0;
+    const mClass=margin>=70?'b-paid':margin>=50?'b-pending':'b-cancelled';
+    return`<tr>
+      <td style="font-weight:600">${c.sku}</td>
+      <td><input class="cost-input-sm" type="number" step="0.01" value="${c.fob}" onchange="FIN_COSTOS[${i}].fob=parseFloat(this.value)||0;recalcCostos()"></td>
+      <td style="color:#999">${fmt(Math.round(landed))}</td>
+      <td><input class="cost-input-sm" type="number" step="100" value="${c.precio}" onchange="FIN_COSTOS[${i}].precio=parseFloat(this.value)||0;recalcCostos()"></td>
+      <td><span class="badge ${mClass}">${margin}%</span></td>
+    </tr>`;
+  }).join('');
+}
+ 
+window.recalcCostos=function(){FIN_TC=parseInt(document.getElementById('tc-slider')?.value||FIN_TC);renderFinCostos();};
+window.saveCostos=function(){
+  FIN_TC=parseInt(document.getElementById('tc-slider')?.value||FIN_TC);
+  finSave('costos',FIN_COSTOS);finSave('tc',FIN_TC);
+  if(document.getElementById('sec-finanzas')?.classList.contains('active'))renderFinPL();
+  alert('Costos guardados ✓');
+};
+ 
+function renderFinProv(){
+  const pending=FIN_PROV.filter(p=>p.status==='Pendiente');
+  const totalPen=pending.reduce((s,p)=>s+parseFloat(p.monto||0),0);
+  const totalAll=FIN_PROV.reduce((s,p)=>s+parseFloat(p.monto||0),0);
+  const overdue=pending.filter(p=>p.vence&&new Date(p.vence)<new Date());
+  const kpis=document.getElementById('prov-kpis');
+  if(kpis)kpis.innerHTML=`
+    <div class="kpi"><div class="kpi-label">Total pendiente</div><div class="kpi-value down">${fmt(totalPen)}</div><div class="kpi-sub">${fmtN(pending.length)} facturas</div></div>
+    <div class="kpi"><div class="kpi-label">Vencidas</div><div class="kpi-value${overdue.length?' down':''}">${fmtN(overdue.length)}</div><div class="kpi-sub">${fmt(overdue.reduce((s,p)=>s+parseFloat(p.monto||0),0))}</div></div>
+    <div class="kpi"><div class="kpi-label">Total registrado</div><div class="kpi-value">${fmt(totalAll)}</div><div class="kpi-sub">${fmtN(FIN_PROV.length)} facturas</div></div>`;
+  const pendEl=document.getElementById('prov-pending');
+  if(pendEl){
+    if(!pending.length){pendEl.innerHTML='<div class="card"><div class="empty">✓ Sin facturas pendientes</div></div>';}
+    else pendEl.innerHTML=pending.sort((a,b)=>(a.vence||'9999')>(b.vence||'9999')?1:-1).map(p=>{
+      const isOverdue=p.vence&&new Date(p.vence)<new Date();
+      return`<div class="stock-alert ${isOverdue?'critical':'warn'}">
+        <div><div style="font-weight:600">${p.proveedor}</div><div style="font-size:11px;margin-top:2px">${p.concepto||'—'}${p.notas?' · '+p.notas:''}</div></div>
+        <div style="text-align:right"><div style="font-weight:700">${fmt(parseFloat(p.monto||0))}</div><div style="font-size:11px">${p.vence?'Vence: '+p.vence:''}</div>
+        <button class="btn-sm" style="margin-top:4px" onclick="markProvPaid('${p.id}')">Marcar pagado</button></div>
+      </div>`;
+    }).join('');
+  }
+  const tbody=document.getElementById('prov-tbody');
+  if(!tbody)return;
+  tbody.innerHTML=[...FIN_PROV].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')).map(p=>`
+    <tr>
+      <td style="color:#999;font-size:11px;white-space:nowrap">${p.fecha||'—'}</td>
+      <td style="font-weight:600">${p.proveedor}</td>
+      <td style="font-size:11px;color:#666;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.concepto||'—'}</td>
+      <td style="font-weight:600">${fmt(parseFloat(p.monto||0))}</td>
+      <td style="color:#999;font-size:11px">${p.vence||'—'}</td>
+      <td>${p.status==='Pagado'?'<span class="badge b-paid">Pagado</span>':'<span class="badge b-pending">Pendiente</span>'}</td>
+      <td><button class="btn-danger" onclick="deleteProv('${p.id}')">✕</button></td>
+    </tr>`).join('');
+}
+ 
+window.markProvPaid=function(id){const p=FIN_PROV.find(x=>x.id===id);if(p){p.status='Pagado';finSave('prov',FIN_PROV);renderFinProv();}};
+window.deleteProv=function(id){if(!confirm('¿Eliminar esta factura?'))return;FIN_PROV=FIN_PROV.filter(p=>p.id!==id);finSave('prov',FIN_PROV);renderFinProv();};
+ 
+window.openProvModal=function(){
+  const modal=document.createElement('div');modal.className='fin-modal';modal.id='prov-modal';
+  modal.innerHTML=`<div class="fin-modal-box">
+    <div class="fin-modal-title">Nueva cuenta por pagar</div>
+    <div class="fin-row2">
+      <div class="fin-field"><label>Fecha factura</label><input type="date" id="pv-fecha" value="${nowStr()}"></div>
+      <div class="fin-field"><label>Estado</label><select id="pv-status"><option>Pendiente</option><option>Pagado</option></select></div>
+    </div>
+    <div class="fin-row2">
+      <div class="fin-field"><label>Proveedor</label><input type="text" id="pv-prov" placeholder="Ej: Oriola, Vibrander..."></div>
+      <div class="fin-field"><label>N° Factura</label><input type="text" id="pv-fc" placeholder="Opcional"></div>
+    </div>
+    <div class="fin-field"><label>Concepto</label><input type="text" id="pv-concepto" placeholder="Ej: Despachante Impo #8, Fee Mayo..."></div>
+    <div class="fin-row2">
+      <div class="fin-field"><label>Total ARS</label><input type="number" id="pv-monto" placeholder="0" min="0"></div>
+      <div class="fin-field"><label>Fecha vencimiento</label><input type="date" id="pv-vence"></div>
+    </div>
+    <div class="fin-field"><label>Notas</label><textarea id="pv-notas" placeholder="Instrucciones de pago, CBU, etc."></textarea></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:1rem">
+      <button class="btn-secondary" onclick="document.getElementById('prov-modal').remove()">Cancelar</button>
+      <button class="btn-primary" onclick="saveProv()">Guardar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+};
+ 
+window.saveProv=function(){
+  const e={id:uid(),fecha:document.getElementById('pv-fecha').value,proveedor:document.getElementById('pv-prov').value.trim(),factura:document.getElementById('pv-fc').value.trim(),concepto:document.getElementById('pv-concepto').value.trim(),monto:parseFloat(document.getElementById('pv-monto').value)||0,vence:document.getElementById('pv-vence').value,status:document.getElementById('pv-status').value,notas:document.getElementById('pv-notas').value.trim()};
+  if(!e.proveedor||!e.monto){alert('Proveedor y monto son requeridos');return;}
+  FIN_PROV.push(e);finSave('prov',FIN_PROV);document.getElementById('prov-modal').remove();renderFinProv();
+};
+ 
+function renderFinances(){
+  renderFinPL();
+  renderFinB2B();
+  renderFinGastos();
+  renderFinMktg();
+  renderFinCostos();
+  renderFinProv();
 }
 </script>
 </body>
