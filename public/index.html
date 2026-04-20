@@ -44,6 +44,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .tbl tr:last-child td { border-bottom: none; }
 .badge { display: inline-block; font-size: 10px; padding: 3px 9px; border-radius: 20px; font-weight: 700; }
 .b-paid{background:#E1F5EE;color:#0F6E56} .b-pending{background:#FAEEDA;color:#854F0B} .b-cancelled{background:#FCEBEB;color:#A32D2D} .b-open{background:#E6F1FB;color:#185FA5} .b-abandoned{background:#F1EFE8;color:#5F5E5A} .b-new{background:#E6F1FB;color:#185FA5} .b-rec{background:#E1F5EE;color:#0F6E56}
+.b-masc{background:#E6F1FB;color:#185FA5} .b-fem{background:#FBEAF0;color:#993556} .b-unk{background:#F1EFE8;color:#5F5E5A}
 .progress-wrap{width:100%;background:#f0f0ec;border-radius:4px;height:5px;margin-top:3px}
 .progress-bar{height:5px;border-radius:4px;background:#1D9E75}
 .chart-wrap{position:relative;width:100%}
@@ -70,11 +71,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .login-btn{width:100%;padding:10px;background:#1D9E75;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
 .login-err{font-size:12px;color:#D85A30;margin-top:8px;display:none}
 #map-container svg{width:100%;height:auto}
+.demo-gender-bar { display:flex; height:28px; border-radius:8px; overflow:hidden; margin:12px 0; }
+.demo-gender-bar div { display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#fff; transition:width 0.5s; }
+.coverage-note { font-size:11px; color:#999; background:#f9f9f7; border-radius:8px; padding:8px 12px; margin-top:8px; }
 @media(max-width:540px){.grid2{grid-template-columns:1fr}.kpis{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
-
+ 
 <div class="login-overlay" id="loginOverlay">
   <div class="login-box">
     <div class="login-logo">Bloom<span>Life</span></div>
@@ -84,7 +88,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <div class="login-err" id="loginErr">Contraseña incorrecta</div>
   </div>
 </div>
-
+ 
 <div class="app">
   <div class="header">
     <div class="logo">Bloom<span>Life</span> — Dashboard</div>
@@ -111,17 +115,70 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <button class="nav-btn" onclick="showSection('suscripciones')">Suscripciones</button>
     <button class="nav-btn" onclick="showSection('canales')">Canales</button>
     <button class="nav-btn" onclick="showSection('pedidos')">Pedidos</button>
+    <button class="nav-btn" onclick="showSection('demografia')">Demografía</button>
   </div>
   <div id="main"><div class="loading"><div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div><p style="margin-top:1rem">Conectando con Tienda Nube...</p></div></div>
 </div>
-
+ 
 <script>
 const PROXY='';
 const PASSWORD='bloom2026';
 let ALL_ORDERS=[],ALL_PRODUCTS=[],FILTERED_ORDERS=[];
 let CHARTS={};
 let SELECTED_RECOMPRA_MONTH=null;
-
+ 
+// ─── NOMBRES ARGENTINOS ────────────────────────────────────────────────────
+// Lista amplia para máxima cobertura local
+const NOMBRES_F = new Set([
+  'maria','ana','laura','carolina','andrea','patricia','claudia','alejandra',
+  'gabriela','marcela','silvana','valeria','paula','natalia','veronica','monica',
+  'daniela','fernanda','cecilia','florencia','lucia','sofia','valentina','camila',
+  'agustina','martina','julieta','melina','sabrina','vanessa','roxana','viviana',
+  'norma','beatriz','rosa','isabel','susana','graciela','miriam','nora','alicia',
+  'mariana','sandra','jimena','romina','gisela','lorena','karina','paola','noelia',
+  'brenda','soledad','celeste','aldana','rocio','micaela','belen','giuliana',
+  'antonella','bianca','lourdes','magali','ayelen','estefania','marisol','daiana',
+  'yasmin','ruth','elisa','silvia','victoria','dolores','adriana','irene','liliana',
+  'rebeca','esperanza','pilar','mercedes','josefina','constanza','emilia','renata',
+  'emma','mia','zoe','lara','abril','naomi','stefania','malena','candela','marina',
+  'guadalupe','paloma','catalina','alma','clara','nadia','tamara','ivana','cinthia',
+  'cintia','eliana','yesica','jessica','barbara','evelyn','maira','gina','fatima',
+  'azul','mora','elsa','martha','dora','sara','lucia','natalia','elena','ines',
+  'amalia','herminia','olga','hilda','amanda','stella','ofelia','gladys','mirta',
+  'raquel','analia','margarita','estela','claudia','griselda','mabel','viviana'
+]);
+ 
+const NOMBRES_M = new Set([
+  'juan','carlos','luis','jose','jorge','roberto','diego','pablo','daniel','sergio',
+  'miguel','alejandro','gabriel','martin','nicolas','andres','gustavo','ricardo',
+  'marcelo','alberto','hector','oscar','hernan','mario','raul','fernando','pedro',
+  'ariel','leandro','federico','ignacio','maximiliano','sebastian','christian',
+  'matias','facundo','ezequiel','rodrigo','joaquin','santiago','franco','gonzalo',
+  'walter','mario','hugo','ruben','javier','dante','ramiro','emilio','nahuel',
+  'agustin','lucas','tomas','marcos','lautaro','julian','alan','brian','kevin',
+  'ivan','enzo','maximo','thiago','benicio','bautista','valentino','gael','luca',
+  'benjamin','nicolas','alexander','alexis','cristian','damian','pablo','esteban',
+  'francisco','manuel','antonio','eduardo','alfredo','ernesto','horacio','abel',
+  'cesar','ivan','german','hernan','claudio','omar','felix','victor','angel',
+  'rafael','rodrigo','hugo','oscar','marcos','gabriel','pablo','ezequiel','luciano',
+  'mariano','fabian','david','joel','simon','ignacio','patricio','augusto','elena',
+  'santiago','nicolas','franco','mateo','emiliano','leonel','leandro','axel',
+  'norberto','edmundo','gerardo','rolando','armando','nelson','arturo','alfredo',
+  'silvio','renato','cristobal','mauricio','lisandro','salvador','victorio','raul',
+  'adolfo','roberto','gonzalo','esteban','hernan','marcelo','pedro','ramiro','tomas'
+]);
+ 
+function inferGender(fullName) {
+  if (!fullName) return 'unknown';
+  const first = fullName.trim().split(/\s+/)[0].toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (NOMBRES_F.has(first)) return 'F';
+  if (NOMBRES_M.has(first)) return 'M';
+  // Heurística de terminación como fallback
+  if (first.endsWith('a') && !first.endsWith('oa') && first.length > 3) return 'F';
+  return 'unknown';
+}
+ 
 function doLogin(){
   const v=document.getElementById('pwInput').value;
   if(v===PASSWORD){sessionStorage.setItem('bl_auth','ok');document.getElementById('loginOverlay').style.display='none';init();}
@@ -130,7 +187,7 @@ function doLogin(){
 window.addEventListener('DOMContentLoaded',()=>{
   if(sessionStorage.getItem('bl_auth')==='ok'){document.getElementById('loginOverlay').style.display='none';init();}
 });
-
+ 
 function fmt(n){return new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:0}).format(n||0);}
 function fmtN(n){return new Intl.NumberFormat('es-AR').format(Math.round(n||0));}
 function getName(o){if(!o)return'—';if(typeof o==='string')return o;return o.es||o.en||Object.values(o)[0]||'—';}
@@ -138,7 +195,7 @@ function initials(n){if(!n)return'?';return n.split(' ').map(w=>w[0]).slice(0,2)
 function statusBadge(s){const m={paid:['Pagado','b-paid'],pending:['Pendiente','b-pending'],cancelled:['Cancelado','b-cancelled'],open:['Abierto','b-open'],voided:['Anulado','b-cancelled'],refunded:['Reembolsado','b-cancelled'],abandoned:['Abandonado','b-abandoned']};const[l,c]=m[s]||[s,'b-pending'];return`<span class="badge ${c}">${l}</span>`;}
 function mkChart(id,type,labels,datasets,opts){if(CHARTS[id])CHARTS[id].destroy();const ctx=document.getElementById(id);if(!ctx)return;CHARTS[id]=new Chart(ctx,{type,data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},...(opts?.plugins||{})},...opts}});}
 function tickY(v){if(v>=1000000)return'$'+(v/1000000).toFixed(1)+'M';if(v>=1000)return'$'+(v/1000).toFixed(0)+'k';return'$'+v;}
-
+ 
 function applyFilter(){
   const from=document.getElementById('dateFrom').value;
   const to=document.getElementById('dateTo').value;
@@ -159,21 +216,21 @@ function resetFilter(){
   document.getElementById('filter-active').style.display='none';
   renderAll();
 }
-
+ 
 window.showSection=function(id){
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.getAttribute('onclick').includes("'"+id+"'")));
   document.querySelectorAll('.section').forEach(s=>s.classList.toggle('active',s.id==='sec-'+id));
 };
-
+ 
 async function apiFetch(path){const r=await fetch(PROXY+'/api/'+path);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
 async function fetchAll(){let all=[],page=1;while(true){const b=await apiFetch('orders?per_page=200&page='+page);if(!b.length)break;all=all.concat(b);if(b.length<200)break;page++;if(page>15)break;}return all;}
-
+ 
 window.selectRecompraMonth=function(k){
   SELECTED_RECOMPRA_MONTH=k;
   renderRecompraDetail(k);
   document.querySelectorAll('.month-btn').forEach(b=>b.classList.toggle('active',b.dataset.k===k));
 };
-
+ 
 function renderRecompraDetail(k){
   const paid=FILTERED_ORDERS.filter(o=>o.payment_status==='paid');
   const mNames=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -227,7 +284,7 @@ function renderRecompraDetail(k){
     </div>
   `;
 }
-
+ 
 function buildMap(provData){
   const container=document.getElementById('map-container');
   if(!container)return;
@@ -250,7 +307,7 @@ function buildMap(provData){
   });
   const maxV=Math.max(...Object.values(normalized),1);
   const color=d3.scaleSequential([0,maxV],d3.interpolate('#E1F5EE','#085041'));
-
+ 
   d3.json('https://cdn.jsdelivr.net/npm/datamaps@0.5.10/src/js/data/arg.topo.json').then(topo=>{
     const features=topojson.feature(topo,topo.objects.arg).features;
     const svg=d3.select(container).append('svg').attr('viewBox','0 0 500 700').attr('width','100%');
@@ -273,12 +330,243 @@ function buildMap(provData){
     container.innerHTML='<div class="empty">No se pudo cargar el mapa</div>';
   });
 }
-
+ 
+// ─── DEMOGRAFÍA ────────────────────────────────────────────────────────────
+function buildDemoData(orders) {
+  const paid = orders.filter(o => o.payment_status === 'paid');
+ 
+  // Un registro por cliente único (por email)
+  const custMap = {};
+  paid.forEach(o => {
+    const email = o.customer?.email || o.contact_email;
+    if (!email) return;
+    if (!custMap[email]) {
+      const name = o.customer?.name || o.contact_name || '';
+      custMap[email] = {
+        name,
+        email,
+        gender: inferGender(name),
+        orders: 0,
+        rev: 0,
+        province: o.billing_province || o.shipping_address?.province || '',
+        city: o.shipping_address?.city || o.billing_address?.city || '',
+        phone: o.customer?.phone || o.contact_phone || '',
+        identification: o.customer?.identification || '',
+        first: o.created_at,
+        last: o.created_at,
+      };
+    }
+    custMap[email].orders++;
+    custMap[email].rev += parseFloat(o.total || 0);
+    if (o.created_at > custMap[email].last) custMap[email].last = o.created_at;
+  });
+ 
+  const custList = Object.values(custMap);
+  const total = custList.length;
+  if (total === 0) return null;
+ 
+  // Sexo
+  const gCount = { M: 0, F: 0, unknown: 0 };
+  const gRev   = { M: 0, F: 0, unknown: 0 };
+  custList.forEach(c => { gCount[c.gender]++; gRev[c.gender] += c.rev; });
+  const classified = gCount.M + gCount.F;
+  const coveragePct = total > 0 ? Math.round(classified / total * 100) : 0;
+ 
+  // Ticket promedio por género
+  const gOrders = { M: 0, F: 0 };
+  custList.forEach(c => { if (c.gender !== 'unknown') gOrders[c.gender] += c.orders; });
+  const avgTicketM = gOrders.M > 0 ? gRev.M / gOrders.M : 0;
+  const avgTicketF = gOrders.F > 0 ? gRev.F / gOrders.F : 0;
+ 
+  // Ciudad — top 10
+  const cityMap = {};
+  custList.forEach(c => {
+    if (!c.city) return;
+    const key = c.city.trim();
+    if (!cityMap[key]) cityMap[key] = { count: 0, rev: 0 };
+    cityMap[key].count++;
+    cityMap[key].rev += c.rev;
+  });
+  const topCities = Object.entries(cityMap).sort((a,b) => b[1].count - a[1].count).slice(0, 12);
+ 
+  // Provincia
+  const provMap = {};
+  custList.forEach(c => {
+    if (!c.province) return;
+    const key = c.province.trim();
+    if (!provMap[key]) provMap[key] = { count: 0, rev: 0 };
+    provMap[key].count++;
+    provMap[key].rev += c.rev;
+  });
+  const topProvs = Object.entries(provMap).sort((a,b) => b[1].count - a[1].count).slice(0, 10);
+  const maxProv = topProvs.length > 0 ? topProvs[0][1].count : 1;
+ 
+  // Dominio de email (proveedor)
+  const domainMap = {};
+  custList.forEach(c => {
+    const domain = c.email.split('@')[1] || 'otro';
+    domainMap[domain] = (domainMap[domain] || 0) + 1;
+  });
+  const topDomains = Object.entries(domainMap).sort((a,b) => b[1]-a[1]).slice(0, 6);
+ 
+  // Nuevos clientes por mes
+  const newByMonth = {};
+  custList.forEach(c => {
+    const k = c.first.slice(0, 7);
+    newByMonth[k] = (newByMonth[k] || 0) + 1;
+  });
+  const mNames = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const newMonthKeys = Object.keys(newByMonth).sort().slice(-8);
+  const newMonthLabels = newMonthKeys.map(k => { const [y,m] = k.split('-'); return mNames[parseInt(m)-1]+"'"+y.slice(2); });
+  const newMonthVals = newMonthKeys.map(k => newByMonth[k]);
+ 
+  // Clientes con teléfono
+  const withPhone = custList.filter(c => c.phone && c.phone.length > 4).length;
+  const withId    = custList.filter(c => c.identification && c.identification.length > 3).length;
+ 
+  return {
+    total, classified, coveragePct,
+    gCount, gRev, avgTicketM, avgTicketF,
+    topCities, topProvs, maxProv,
+    topDomains,
+    newMonthKeys, newMonthLabels, newMonthVals,
+    withPhone, withId,
+    custList
+  };
+}
+ 
+function renderDemografia(d) {
+  if (!d) return '<div class="empty">Sin datos suficientes para análisis demográfico.</div>';
+ 
+  const mPct = d.total > 0 ? (d.gCount.M / d.total * 100).toFixed(1) : 0;
+  const fPct = d.total > 0 ? (d.gCount.F / d.total * 100).toFixed(1) : 0;
+  const uPct = d.total > 0 ? (d.gCount.unknown / d.total * 100).toFixed(1) : 0;
+  const mRevPct = (d.gRev.M + d.gRev.F) > 0 ? (d.gRev.M / (d.gRev.M + d.gRev.F) * 100).toFixed(1) : 0;
+  const fRevPct = (d.gRev.M + d.gRev.F) > 0 ? (d.gRev.F / (d.gRev.M + d.gRev.F) * 100).toFixed(1) : 0;
+  const maxCity = d.topCities.length > 0 ? d.topCities[0][1].count : 1;
+ 
+  return `
+    <div class="sec-label">Distribución por sexo</div>
+    <div class="kpis">
+      <div class="kpi">
+        <div class="kpi-label">Mujeres</div>
+        <div class="kpi-value" style="color:#993556">${fPct}%</div>
+        <div class="kpi-sub">${fmtN(d.gCount.F)} clientas · ${fmt(d.avgTicketF)} ticket prom.</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Hombres</div>
+        <div class="kpi-value" style="color:#185FA5">${mPct}%</div>
+        <div class="kpi-sub">${fmtN(d.gCount.M)} clientes · ${fmt(d.avgTicketM)} ticket prom.</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Sin clasificar</div>
+        <div class="kpi-value" style="color:#888">${uPct}%</div>
+        <div class="kpi-sub">${fmtN(d.gCount.unknown)} clientes · nombre ambiguo</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Clientes analizados</div>
+        <div class="kpi-value">${fmtN(d.total)}</div>
+        <div class="kpi-sub">${d.coveragePct}% clasificados</div>
+      </div>
+    </div>
+ 
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">Distribución de sexo — clientes y facturación</div>
+      <div style="margin-bottom:6px;font-size:11px;color:#999">Clientes</div>
+      <div class="demo-gender-bar">
+        <div style="width:${fPct}%;background:#993556;min-width:${d.gCount.F>0?'30px':'0'}">${parseFloat(fPct)>5?fPct+'%':''}</div>
+        <div style="width:${mPct}%;background:#185FA5;min-width:${d.gCount.M>0?'30px':'0'}">${parseFloat(mPct)>5?mPct+'%':''}</div>
+        <div style="width:${uPct}%;background:#d4d1c8;min-width:${d.gCount.unknown>0?'8px':'0'}"></div>
+      </div>
+      <div style="margin-bottom:6px;font-size:11px;color:#999;margin-top:12px">Facturación (clasificados)</div>
+      <div class="demo-gender-bar">
+        <div style="width:${fRevPct}%;background:#993556;min-width:${d.gRev.F>0?'30px':'0'}">${parseFloat(fRevPct)>5?fRevPct+'%':''}</div>
+        <div style="width:${mRevPct}%;background:#185FA5;min-width:${d.gRev.M>0?'30px':'0'}">${parseFloat(mRevPct)>5?mRevPct+'%':''}</div>
+      </div>
+      <div style="display:flex;gap:16px;margin-top:10px">
+        <span style="font-size:11px;color:#993556">■ Mujeres</span>
+        <span style="font-size:11px;color:#185FA5">■ Hombres</span>
+        <span style="font-size:11px;color:#b4b2a8">■ Sin clasificar</span>
+      </div>
+      <div class="coverage-note">⚠ Clasificación por heurística de nombres. Cobertura: ${d.coveragePct}% (${fmtN(d.classified)} de ${fmtN(d.total)} clientes). Los resultados son orientativos.</div>
+    </div>
+ 
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Top ciudades por clientes</div>
+        ${d.topCities.length === 0 ? '<div class="empty">Sin datos de ciudad</div>' :
+          d.topCities.map(([city, v]) => `
+            <div style="margin-bottom:9px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px">
+                <span style="font-weight:500">${city}</span>
+                <span style="color:#999">${fmtN(v.count)} clientes</span>
+              </div>
+              <div class="progress-wrap"><div class="progress-bar" style="width:${Math.round(v.count/maxCity*100)}%"></div></div>
+            </div>`).join('')}
+      </div>
+      <div class="card">
+        <div class="card-title">Distribución por provincia</div>
+        ${d.topProvs.length === 0 ? '<div class="empty">Sin datos de provincia</div>' :
+          d.topProvs.map(([prov, v]) => `
+            <div style="margin-bottom:9px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px">
+                <span style="font-weight:500">${prov}</span>
+                <span style="color:#999">${fmtN(v.count)} · ${fmt(v.rev)}</span>
+              </div>
+              <div class="progress-wrap"><div class="progress-bar" style="width:${Math.round(v.count/d.maxProv*100)}%"></div></div>
+            </div>`).join('')}
+      </div>
+    </div>
+ 
+    <div class="sec-label">Adquisición de nuevos clientes</div>
+    <div class="card"><div class="chart-wrap" style="height:180px"><canvas id="chartNewCusts"></canvas></div></div>
+ 
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Proveedores de email</div>
+        <table class="tbl">
+          <thead><tr><th>Dominio</th><th>Clientes</th><th>%</th></tr></thead>
+          <tbody>
+            ${d.topDomains.map(([dom, cnt]) => `
+              <tr>
+                <td style="font-weight:500">@${dom}</td>
+                <td>${fmtN(cnt)}</td>
+                <td style="color:#999">${(cnt/d.total*100).toFixed(1)}%</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">Cobertura de datos</div>
+        ${[
+          ['Con email', d.total, d.total],
+          ['Con teléfono', d.withPhone, d.total],
+          ['Con identificación', d.withId, d.total],
+          ['Con provincia', d.topProvs.reduce((s,[,v])=>s+v.count,0), d.total],
+          ['Con ciudad', d.topCities.reduce((s,[,v])=>s+v.count,0), d.total],
+        ].map(([label, have, tot]) => `
+          <div style="margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px">
+              <span>${label}</span>
+              <span style="color:#999">${fmtN(have)} <span style="font-size:10px">(${(have/tot*100).toFixed(0)}%)</span></span>
+            </div>
+            <div class="progress-wrap"><div class="progress-bar" style="width:${Math.round(have/tot*100)}%"></div></div>
+          </div>`).join('')}
+      </div>
+    </div>
+ 
+    <div class="sec-label">Facturación por sexo — detalle</div>
+    <div class="card">
+      <div class="chart-wrap" style="height:200px"><canvas id="chartGenderRev"></canvas></div>
+    </div>
+  `;
+}
+ 
 function renderAll(){
   const orders=FILTERED_ORDERS;
   const paid=orders.filter(o=>o.payment_status==='paid');
   const now=new Date();
-
+ 
   // ALERTA CAÍDA
   const thisWeekStart=new Date(now);thisWeekStart.setDate(now.getDate()-7);
   const lastWeekStart=new Date(now);lastWeekStart.setDate(now.getDate()-14);
@@ -286,11 +574,9 @@ function renderAll(){
   const revLastWeek=paid.filter(o=>{const d=new Date(o.created_at);return d>=lastWeekStart&&d<thisWeekStart;}).reduce((s,o)=>s+parseFloat(o.total||0),0);
   const weekDrop=revLastWeek?((revThisWeek-revLastWeek)/revLastWeek*100):0;
   const alertBar=document.getElementById('alertBar');
-  if(weekDrop<=-20){
-    alertBar.classList.add('show');
-    document.getElementById('alertMsg').textContent=`Las ventas de esta semana cayeron ${Math.abs(weekDrop).toFixed(1)}% vs la semana anterior (${fmt(revThisWeek)} vs ${fmt(revLastWeek)})`;
-  } else { alertBar.classList.remove('show'); }
-
+  if(weekDrop<=-20){alertBar.classList.add('show');document.getElementById('alertMsg').textContent=`Las ventas de esta semana cayeron ${Math.abs(weekDrop).toFixed(1)}% vs la semana anterior (${fmt(revThisWeek)} vs ${fmt(revLastWeek)})`;}
+  else{alertBar.classList.remove('show');}
+ 
   // RESUMEN
   const totalRev=paid.reduce((s,o)=>s+parseFloat(o.total||0),0);
   const avgTicket=paid.length?totalRev/paid.length:0;
@@ -314,7 +600,7 @@ function renderAll(){
   const mVals=mKeys.map(k=>Math.round(monthlyMap[k]));
   const statusCount={};
   orders.forEach(o=>{statusCount[o.payment_status]=(statusCount[o.payment_status]||0)+1;});
-
+ 
   // VENTAS
   const dailyMap={};
   paid.forEach(o=>{const d=new Date(o.created_at).toISOString().slice(0,10);dailyMap[d]=(dailyMap[d]||0)+parseFloat(o.total||0);});
@@ -328,7 +614,7 @@ function renderAll(){
   const peakHour=(()=>{const h=Array(24).fill(0);paid.forEach(o=>h[new Date(o.created_at).getHours()]+=parseFloat(o.total||0));return h.indexOf(Math.max(...h));})();
   const weeks=[0,0,0,0];
   paid.forEach(o=>{const diff=Math.floor((now-new Date(o.created_at))/(7*24*3600*1000));if(diff<4)weeks[diff]+=parseFloat(o.total||0);});
-
+ 
   // PRODUCTOS
   const skuMap={};
   paid.forEach(o=>{(o.products||[]).forEach(it=>{const n=getName(it.name);if(!skuMap[n])skuMap[n]={qty:0,rev:0,fmt:'otro',orders:0};skuMap[n].qty+=it.quantity||1;skuMap[n].rev+=parseFloat(it.price||0)*(it.quantity||1);skuMap[n].orders++;const nl=n.toLowerCase();if(nl.includes('gummies')||nl.includes('gummy'))skuMap[n].fmt='gummies';else if(nl.includes('cápsula')||nl.includes('capsula')||nl.includes('caps'))skuMap[n].fmt='capsulas';else if(nl.includes('combo'))skuMap[n].fmt='combo';else if(nl.includes('tablet'))skuMap[n].fmt='tabletas';});});
@@ -336,9 +622,8 @@ function renderAll(){
   const maxRev=Math.max(...sortedSkus.map(s=>s[1].rev),1);
   const fmtGroups={gummies:0,capsulas:0,combo:0,tabletas:0,otro:0};
   sortedSkus.forEach(([,d])=>fmtGroups[d.fmt]=(fmtGroups[d.fmt]||0)+d.rev);
-  // Ticket promedio por producto
   const ticketByProd=sortedSkus.map(([n,d])=>({name:n,ticket:d.orders?d.rev/d.orders:0,rev:d.rev,qty:d.qty})).sort((a,b)=>b.ticket-a.ticket);
-
+ 
   // CLIENTES
   const custMap={};
   paid.forEach(o=>{const e=o.customer?.email||o.contact_email;if(!e)return;if(!custMap[e])custMap[e]={name:o.customer?.name||o.contact_name||e,email:e,orders:0,rev:0,last:o.created_at,first:o.created_at};custMap[e].orders++;custMap[e].rev+=parseFloat(o.total||0);if(o.created_at>custMap[e].last)custMap[e].last=o.created_at;if(o.created_at<custMap[e].first)custMap[e].first=o.created_at;});
@@ -352,7 +637,7 @@ function renderAll(){
   const topRecurring=[...recurringList].sort((a,b)=>b.orders-a.orders).slice(0,5);
   const avgDaysBetween=(()=>{let total=0,count=0;recurringList.forEach(c=>{const os=paid.filter(o=>(o.customer?.email||o.contact_email)===c.email).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));for(let i=1;i<os.length;i++){total+=(new Date(os[i].created_at)-new Date(os[i-1].created_at))/(1000*3600*24);count++;}});return count?total/count:30;})();
   const ltv12=avgTicket*(365/avgDaysBetween);
-
+ 
   // RECOMPRA
   const allMonthKeys=Object.keys(monthlyMap).sort();
   const recompraData=allMonthKeys.map(k=>{
@@ -370,7 +655,7 @@ function renderAll(){
     return{k,label:mNames[parseInt(m)-1]+"'"+y.slice(2),nuevos,recurrentes,total,pct:parseFloat(pct)};
   });
   if(!SELECTED_RECOMPRA_MONTH&&recompraData.length)SELECTED_RECOMPRA_MONTH=recompraData[recompraData.length-1].k;
-
+ 
   // SUSCRIPCIONES
   const subOrders=ALL_ORDERS.filter(o=>o.is_subscription);
   const subPaid=subOrders.filter(o=>o.payment_status==='paid');
@@ -385,7 +670,6 @@ function renderAll(){
   const subMLabels=subMonthKeys.map(k=>{const[y,m]=k.split('-');return mNames[parseInt(m)-1]+"'"+y.slice(2);});
   const subMRR=subMonthKeys.map(k=>Math.round(subMonthlyMap[k].rev));
   const subNew=subMonthKeys.map(k=>subMonthlyMap[k].new||0);
-  // Churn: suscriptores que no renovaron
   const subCustMap={};
   subPaid.forEach(o=>{const e=o.customer?.email;if(!e)return;if(!subCustMap[e])subCustMap[e]={name:o.customer?.name||o.contact_name||e,email:e,orders:0,rev:0,last:o.created_at,first:o.created_at};subCustMap[e].orders++;subCustMap[e].rev+=parseFloat(o.total||0);if(o.created_at>subCustMap[e].last)subCustMap[e].last=o.created_at;if(o.created_at<subCustMap[e].first)subCustMap[e].first=o.created_at;});
   const subCustList=Object.values(subCustMap);
@@ -393,24 +677,26 @@ function renderAll(){
   const churnedSubs=subCustList.filter(c=>(now-new Date(c.last))/(1000*3600*24)>45);
   const churnRate=subCustList.length?(churnedSubs.length/subCustList.length*100).toFixed(1):0;
   const avgSubTicket=subPaid.length?subRevTotal/subPaid.length:0;
-  // Top productos en suscripciones
   const subSkuMap={};
   subPaid.forEach(o=>{(o.products||[]).forEach(it=>{const n=getName(it.name);if(!subSkuMap[n])subSkuMap[n]={qty:0,rev:0};subSkuMap[n].qty+=it.quantity||1;subSkuMap[n].rev+=parseFloat(it.price||0)*(it.quantity||1);});});
   const sortedSubSkus=Object.entries(subSkuMap).sort((a,b)=>b[1].rev-a[1].rev).slice(0,6);
-
+ 
   // CANALES
   const utmMap={};
   orders.forEach(o=>{const utm=o.customer_visit?.utm_parameters;const source=utm?.utm_source||'directo';const medium=utm?.utm_medium||'';const key=medium?source+' / '+medium:source;if(!utmMap[key])utmMap[key]={orders:0,rev:0};utmMap[key].orders++;if(o.payment_status==='paid')utmMap[key].rev+=parseFloat(o.total||0);});
   const sortedUtm=Object.entries(utmMap).sort((a,b)=>b[1].rev-a[1].rev).slice(0,8);
   const maxUtmRev=Math.max(...sortedUtm.map(s=>s[1].rev),1);
-
+ 
   // PROVINCIAS
   const provMap={};
   paid.forEach(o=>{const p=o.billing_province||o.shipping_address?.province||'Desconocida';provMap[p]=(provMap[p]||0)+1;});
   const sortedProv=Object.entries(provMap).sort((a,b)=>b[1]-a[1]);
   const maxProv=Math.max(...sortedProv.map(s=>s[1]),1);
-
-  // RENDER HTML
+ 
+  // DEMOGRAFÍA
+  const demoData = buildDemoData(FILTERED_ORDERS);
+ 
+  // ── RENDER HTML ────────────────────────────────────────────────────────
   document.getElementById('main').innerHTML=`
     <div id="sec-resumen" class="section active">
       <div class="sec-label">Resumen general</div>
@@ -437,7 +723,7 @@ function renderAll(){
         </div>
       </div>
     </div>
-
+ 
     <div id="sec-ventas" class="section">
       <div class="sec-label">Ventas últimos 30 días</div>
       <div class="card"><div class="chart-wrap" style="height:180px"><canvas id="chartDaily"></canvas></div></div>
@@ -450,7 +736,7 @@ function renderAll(){
         </div>
       </div>
     </div>
-
+ 
     <div id="sec-productos" class="section">
       <div class="sec-label">Comparativo por formato</div>
       <div class="kpis">
@@ -469,7 +755,7 @@ function renderAll(){
         </tbody></table>
       </div>
     </div>
-
+ 
     <div id="sec-clientes" class="section">
       <div class="sec-label">Métricas de clientes</div>
       <div class="kpis">
@@ -494,7 +780,7 @@ function renderAll(){
         </tbody></table>
       </div>
     </div>
-
+ 
     <div id="sec-recompra" class="section">
       <div class="sec-label">Tasa de recompra mes a mes</div>
       <div class="card"><div class="chart-wrap" style="height:220px"><canvas id="chartRecompra"></canvas></div></div>
@@ -511,7 +797,7 @@ function renderAll(){
         </tbody></table>
       </div>
     </div>
-
+ 
     <div id="sec-suscripciones" class="section">
       <div class="sec-label">Métricas de suscripciones</div>
       ${subCount===0?'<div class="card"><div class="empty">No se encontraron pedidos de suscripción. Verificá que las suscripciones estén activas en Tienda Nube.</div></div>':`
@@ -526,20 +812,10 @@ function renderAll(){
       <div class="sec-label">MRR mensual</div>
       <div class="card"><div class="chart-wrap" style="height:180px"><canvas id="chartMRR"></canvas></div></div>
       <div class="grid2">
-        <div class="card">
-          <div class="card-title">Nuevos suscriptores por mes</div>
-          <div class="chart-wrap" style="height:160px"><canvas id="chartSubNew"></canvas></div>
-        </div>
+        <div class="card"><div class="card-title">Nuevos suscriptores por mes</div><div class="chart-wrap" style="height:160px"><canvas id="chartSubNew"></canvas></div></div>
         <div class="card">
           <div class="card-title">Top productos en suscripciones</div>
-          ${sortedSubSkus.length===0?'<div class="empty">Sin datos</div>':sortedSubSkus.map(([n,d])=>`
-            <div style="margin-bottom:10px">
-              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
-                <span style="max-width:65%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n}</span>
-                <span style="color:#999">${fmt(d.rev)}</span>
-              </div>
-              <div class="progress-wrap"><div class="progress-bar" style="width:${Math.round(d.rev/Math.max(...sortedSubSkus.map(([,x])=>x.rev),1)*100)}%"></div></div>
-            </div>`).join('')}
+          ${sortedSubSkus.length===0?'<div class="empty">Sin datos</div>':sortedSubSkus.map(([n,d])=>`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="max-width:65%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n}</span><span style="color:#999">${fmt(d.rev)}</span></div><div class="progress-wrap"><div class="progress-bar" style="width:${Math.round(d.rev/Math.max(...sortedSubSkus.map(([,x])=>x.rev),1)*100)}%"></div></div></div>`).join('')}
         </div>
       </div>
       <div class="card">
@@ -549,7 +825,7 @@ function renderAll(){
         </tbody></table>
       </div>`}
     </div>
-
+ 
     <div id="sec-canales" class="section">
       <div class="sec-label">Fuentes de tráfico y ventas</div>
       <div class="card"><div class="chart-wrap" style="height:${Math.max(180,sortedUtm.length*40+60)}px"><canvas id="chartUtm"></canvas></div></div>
@@ -560,7 +836,7 @@ function renderAll(){
         </tbody></table>
       </div>
     </div>
-
+ 
     <div id="sec-pedidos" class="section">
       <div class="sec-label">Historial de pedidos</div>
       <div class="card">
@@ -578,12 +854,16 @@ function renderAll(){
         </div>
       </div>
     </div>
+ 
+    <div id="sec-demografia" class="section">
+      ${renderDemografia(demoData)}
+    </div>
   `;
-
+ 
   document.getElementById('sync-time').textContent='Actualizado: '+new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
-
+ 
   if(SELECTED_RECOMPRA_MONTH) renderRecompraDetail(SELECTED_RECOMPRA_MONTH);
-
+ 
   setTimeout(()=>{
     mkChart('chartMonthly','bar',mLabels,[{label:'Ingresos',data:mVals,backgroundColor:'#1D9E75',borderRadius:4,borderSkipped:false}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:tickY}}}});
     mkChart('chartDaily','line',dLabels,[{label:'Ventas',data:dVals,borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.08)',fill:true,tension:0.3,pointRadius:2}],{scales:{x:{grid:{display:false},ticks:{font:{size:10},maxTicksLimit:10}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:tickY}}}});
@@ -598,10 +878,20 @@ function renderAll(){
       mkChart('chartMRR','bar',subMLabels,[{label:'MRR',data:subMRR,backgroundColor:'#1D9E75',borderRadius:4,borderSkipped:false}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:tickY}}}});
       mkChart('chartSubNew','bar',subMLabels,[{label:'Nuevos',data:subNew,backgroundColor:'#5DCAA5',borderRadius:4}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},beginAtZero:true}}}});
     }
+    // Gráficos de demografía
+    if(demoData){
+      mkChart('chartNewCusts','bar',demoData.newMonthLabels,[{label:'Nuevos clientes',data:demoData.newMonthVals,backgroundColor:'#1D9E75',borderRadius:4}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},beginAtZero:true}}}});
+      const gRevData=[
+        {label:'Mujeres',data:[Math.round(demoData.gRev.F)],backgroundColor:'#993556',borderRadius:4},
+        {label:'Hombres',data:[Math.round(demoData.gRev.M)],backgroundColor:'#185FA5',borderRadius:4},
+        {label:'Sin clasificar',data:[Math.round(demoData.gRev.unknown)],backgroundColor:'#d4d1c8',borderRadius:4}
+      ];
+      mkChart('chartGenderRev','bar',['Facturación total por sexo'],gRevData,{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:tickY}}},plugins:{legend:{display:true,position:'bottom',labels:{font:{size:11},boxWidth:10,padding:12}}}});
+    }
     setTimeout(()=>buildMap(provMap),200);
   },150);
 }
-
+ 
 async function init(){
   try{
     document.getElementById('main').innerHTML='<div class="loading"><div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div><p style="margin-top:1rem">Cargando datos de Bloom Life...</p></div>';
