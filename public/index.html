@@ -156,4 +156,249 @@ window.showSection=function(id){
 };
 
 async function apiFetch(path){const r=await fetch(PROXY+'/api/'+path);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
-async function fetchAll(){let all=[],page=1;while(true){const b=await apiFetch('orders?per_page=200&page='+page);if(!b.length)break;all=all.concat(b);if(b.length<200)break;page++;i
+async function fetchAll(){let all=[],page=1;while(true){const b=await apiFetch('orders?per_page=200&page='+page);if(!b.length)break;all=all.concat(b);if(b.length<200)break;page++;if(page>15)break;}return all;}
+
+function renderAll(){
+  const orders=FILTERED_ORDERS;
+  const paid=orders.filter(o=>o.payment_status==='paid');
+
+  // --- RESUMEN ---
+  const totalRev=paid.reduce((s,o)=>s+parseFloat(o.total||0),0);
+  const avgTicket=paid.length?totalRev/paid.length:0;
+  const now=new Date();
+  const m0=new Date(now.getFullYear(),now.getMonth(),1);
+  const m1=new Date(now.getFullYear(),now.getMonth()-1,1);
+  const pM=paid.filter(o=>new Date(o.created_at)>=m0);
+  const pL=paid.filter(o=>{const d=new Date(o.created_at);return d>=m1&&d<m0;});
+  const revM=pM.reduce((s,o)=>s+parseFloat(o.total||0),0);
+  const revL=pL.reduce((s,o)=>s+parseFloat(o.total||0),0);
+  const growth=revL?((revM-revL)/revL*100).toFixed(1):null;
+  const emailCount={};
+  paid.forEach(o=>{const e=o.customer?.email;if(e)emailCount[e]=(emailCount[e]||0)+1;});
+  const customers=Object.keys(emailCount);
+  const returning=Object.values(emailCount).filter(c=>c>1).length;
+  const retRate=customers.length?(returning/customers.length*100).toFixed(0):0;
+  const monthlyMap={};
+  paid.forEach(o=>{const d=new Date(o.created_at);const k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');monthlyMap[k]=(monthlyMap[k]||0)+parseFloat(o.total||0);});
+  const mKeys=Object.keys(monthlyMap).sort().slice(-6);
+  const mNames=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const mLabels=mKeys.map(k=>{const[y,m]=k.split('-');return mNames[parseInt(m)-1]+"'"+y.slice(2);});
+  const mVals=mKeys.map(k=>Math.round(monthlyMap[k]));
+  const statusCount={};
+  orders.forEach(o=>{statusCount[o.payment_status]=(statusCount[o.payment_status]||0)+1;});
+
+  // --- VENTAS ---
+  const dailyMap={};
+  paid.forEach(o=>{const d=new Date(o.created_at).toISOString().slice(0,10);dailyMap[d]=(dailyMap[d]||0)+parseFloat(o.total||0);});
+  const dKeys=Object.keys(dailyMap).sort().slice(-30);
+  const dVals=dKeys.map(k=>Math.round(dailyMap[k]));
+  const dLabels=dKeys.map(k=>{const[,m,d]=k.split('-');return d+'/'+m;});
+  const dowMap=Array(7).fill(0);const dowCount=Array(7).fill(0);
+  paid.forEach(o=>{const d=new Date(o.created_at).getDay();dowMap[d]+=parseFloat(o.total||0);dowCount[d]++;});
+  const dowLabels=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const dowAvg=dowMap.map((v,i)=>dowCount[i]?Math.round(v/dowCount[i]):0);
+  const peakHour=(()=>{const h=Array(24).fill(0);paid.forEach(o=>h[new Date(o.created_at).getHours()]+=parseFloat(o.total||0));return h.indexOf(Math.max(...h));})();
+  const weeks=[0,0,0,0];
+  paid.forEach(o=>{const diff=Math.floor((now-new Date(o.created_at))/(7*24*3600*1000));if(diff<4)weeks[diff]+=parseFloat(o.total||0);});
+
+  // --- PRODUCTOS ---
+  const skuMap={};
+  paid.forEach(o=>{(o.products||[]).forEach(it=>{const n=getName(it.name);if(!skuMap[n])skuMap[n]={qty:0,rev:0,fmt:'otro'};skuMap[n].qty+=it.quantity||1;skuMap[n].rev+=parseFloat(it.price||0)*(it.quantity||1);const nl=n.toLowerCase();if(nl.includes('gummies')||nl.includes('gummy'))skuMap[n].fmt='gummies';else if(nl.includes('cápsula')||nl.includes('capsula')||nl.includes('caps'))skuMap[n].fmt='capsulas';else if(nl.includes('combo'))skuMap[n].fmt='combo';else if(nl.includes('tablet'))skuMap[n].fmt='tabletas';});});
+  const sortedSkus=Object.entries(skuMap).sort((a,b)=>b[1].rev-a[1].rev);
+  const maxRev=Math.max(...sortedSkus.map(s=>s[1].rev),1);
+  const fmtGroups={gummies:0,capsulas:0,combo:0,tabletas:0,otro:0};
+  sortedSkus.forEach(([,d])=>fmtGroups[d.fmt]=(fmtGroups[d.fmt]||0)+d.rev);
+
+  // --- CLIENTES ---
+  const custMap={};
+  paid.forEach(o=>{const e=o.customer?.email||o.contact_email;if(!e)return;if(!custMap[e])custMap[e]={name:o.customer?.name||o.contact_name||e,email:e,orders:0,rev:0,last:o.created_at};custMap[e].orders++;custMap[e].rev+=parseFloat(o.total||0);if(o.created_at>custMap[e].last)custMap[e].last=o.created_at;});
+  const custList=Object.values(custMap);
+  const avgLTV=custList.length?custList.reduce((s,c)=>s+c.rev,0)/custList.length:0;
+  const avgOrders=custList.length?custList.reduce((s,c)=>s+c.orders,0)/custList.length:0;
+  const recurringList=custList.filter(c=>c.orders>1);
+  const cohorts={active:0,lapsed:0,old:0};
+  custList.forEach(c=>{const days=(now-new Date(c.last))/(1000*3600*24);if(days<=30)cohorts.active++;else if(days<=90)cohorts.lapsed++;else cohorts.old++;});
+  const topCusts=[...custList].sort((a,b)=>b.rev-a.rev).slice(0,8);
+  const topRecurring=[...recurringList].sort((a,b)=>b.orders-a.orders).slice(0,5);
+  // LTV proyectado
+  const avgDaysBetween=(()=>{let total=0,count=0;custList.filter(c=>c.orders>1).forEach(c=>{const os=paid.filter(o=>(o.customer?.email||o.contact_email)===c.email).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));for(let i=1;i<os.length;i++){total+=(new Date(os[i].created_at)-new Date(os[i-1].created_at))/(1000*3600*24);count++;}});return count?total/count:30;})();
+  const purchasesPerYear=365/avgDaysBetween;
+  const ltv12=avgTicket*purchasesPerYear;
+
+  // --- RECOMPRA MES A MES ---
+  const allMonthKeys=Object.keys(monthlyMap).sort();
+  // Para cada mes: clientes que compraron ese mes, cuántos ya habían comprado antes
+  const recompraData=allMonthKeys.map(k=>{
+    const [y,m]=k.split('-');
+    const monthStart=new Date(parseInt(y),parseInt(m)-1,1);
+    const monthEnd=new Date(parseInt(y),parseInt(m),1);
+    const prevOrders=paid.filter(o=>new Date(o.created_at)<monthStart);
+    const prevEmails=new Set(prevOrders.map(o=>o.customer?.email).filter(Boolean));
+    const monthOrders=paid.filter(o=>{const d=new Date(o.created_at);return d>=monthStart&&d<monthEnd;});
+    const monthEmails=new Set(monthOrders.map(o=>o.customer?.email).filter(Boolean));
+    const nuevos=[...monthEmails].filter(e=>!prevEmails.has(e)).length;
+    const recurrentes=[...monthEmails].filter(e=>prevEmails.has(e)).length;
+    const total=monthEmails.size;
+    const pct=total?(recurrentes/total*100).toFixed(1):0;
+    return{k,label:mNames[parseInt(m)-1]+"'"+y.slice(2),nuevos,recurrentes,total,pct:parseFloat(pct)};
+  });
+
+  // --- CANALES ---
+  const utmMap={};
+  orders.forEach(o=>{
+    const utm=o.customer_visit?.utm_parameters;
+    const source=utm?.utm_source||'directo';
+    const medium=utm?.utm_medium||'';
+    const key=medium?source+' / '+medium:source;
+    if(!utmMap[key])utmMap[key]={orders:0,rev:0};
+    utmMap[key].orders++;
+    if(o.payment_status==='paid')utmMap[key].rev+=parseFloat(o.total||0);
+  });
+  const sortedUtm=Object.entries(utmMap).sort((a,b)=>b[1].rev-a[1].rev).slice(0,8);
+  const maxUtmRev=Math.max(...sortedUtm.map(s=>s[1].rev),1);
+
+  // BUILD HTML
+  document.getElementById('main').innerHTML=`
+    <div id="sec-resumen" class="section active">
+      <div class="sec-label">Resumen general</div>
+      <div class="kpis">
+        <div class="kpi"><div class="kpi-label">Ingresos este mes</div><div class="kpi-value">${fmt(revM)}</div><div class="kpi-sub ${growth!==null&&parseFloat(growth)>=0?'up':'down'}">${growth!==null?(parseFloat(growth)>=0?'▲':'▼')+' '+Math.abs(growth)+'% vs mes ant.':'Primer mes'}</div></div>
+        <div class="kpi"><div class="kpi-label">Ingresos totales</div><div class="kpi-value">${fmt(totalRev)}</div><div class="kpi-sub">${fmtN(paid.length)} pedidos pagados</div></div>
+        <div class="kpi"><div class="kpi-label">Ticket promedio</div><div class="kpi-value">${fmt(avgTicket)}</div><div class="kpi-sub">por pedido pagado</div></div>
+        <div class="kpi"><div class="kpi-label">Clientes únicos</div><div class="kpi-value">${fmtN(customers.length)}</div><div class="kpi-sub">${retRate}% recurrentes</div></div>
+        <div class="kpi"><div class="kpi-label">Pedidos este mes</div><div class="kpi-value">${fmtN(pM.length)}</div><div class="kpi-sub">${fmtN(pL.length)} el mes pasado</div></div>
+        <div class="kpi"><div class="kpi-label">Productos</div><div class="kpi-value">${fmtN(ALL_PRODUCTS.length)}</div><div class="kpi-sub">en catálogo</div></div>
+      </div>
+      <div class="sec-label">Ingresos mensuales</div>
+      <div class="card"><div class="chart-wrap" style="height:200px"><canvas id="chartMonthly"></canvas></div></div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-title">Estado de pedidos</div>
+          ${Object.entries(statusCount).map(([s,c])=>`<div class="row-item"><span>${statusBadge(s)}</span><span style="font-weight:600">${fmtN(c)}</span></div>`).join('')}
+        </div>
+        <div class="card">
+          <div class="card-title">Pedidos recientes</div>
+          <table class="tbl"><thead><tr><th>#</th><th>Cliente</th><th>Total</th><th>Estado</th></tr></thead><tbody>
+          ${[...orders].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,6).map(o=>`<tr><td style="color:#999">${o.number}</td><td style="max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.customer?.name||o.contact_name||'—'}</td><td>${fmt(parseFloat(o.total||0))}</td><td>${statusBadge(o.payment_status)}</td></tr>`).join('')}
+          </tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <div id="sec-ventas" class="section">
+      <div class="sec-label">Ventas últimos 30 días</div>
+      <div class="card"><div class="chart-wrap" style="height:180px"><canvas id="chartDaily"></canvas></div></div>
+      <div class="grid2">
+        <div class="card"><div class="card-title">Promedio por día de semana</div><div class="chart-wrap" style="height:160px"><canvas id="chartDow"></canvas></div></div>
+        <div class="card">
+          <div class="card-title">Semanas recientes</div>
+          ${['Esta semana','Semana pasada','Hace 2 semanas','Hace 3 semanas'].map((l,i)=>`<div class="row-item"><span style="color:#999">${l}</span><span style="font-weight:600">${fmt(weeks[i])}</span></div>`).join('')}
+          <div style="margin-top:12px;font-size:11px;color:#999">Hora pico de ventas: ${peakHour}:00 hs</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="sec-productos" class="section">
+      <div class="sec-label">Comparativo por formato</div>
+      <div class="kpis">
+        ${[['Combos','combo','#1D9E75'],['Gummies','gummies','#5DCAA5'],['Cápsulas','capsulas','#EF9F27'],['Tabletas','tabletas','#185FA5'],['Otros','otro','#B4B2A9']].map(([l,k,c])=>fmtGroups[k]>0?`<div class="kpi"><div class="kpi-label" style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:${c};display:inline-block"></span>${l}</div><div class="kpi-value">${fmt(fmtGroups[k])}</div><div class="kpi-sub">${fmtN(sortedSkus.filter(([,d])=>d.fmt===k).reduce((s,[,d])=>s+d.qty,0))} unidades</div></div>`:'').join('')}
+      </div>
+      <div class="sec-label">Rendimiento por producto</div>
+      <div class="card"><div class="chart-wrap" style="height:${Math.max(200,sortedSkus.slice(0,6).length*45+60)}px"><canvas id="chartProd"></canvas></div></div>
+      <div class="card">
+        <div class="card-title">Detalle completo</div>
+        <table class="tbl"><thead><tr><th>Producto</th><th>Formato</th><th>Unidades</th><th>Ingresos</th><th>%</th></tr></thead><tbody>
+        ${sortedSkus.map(([n,d])=>`<tr><td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n}</td><td style="color:#999;font-size:11px">${d.fmt}</td><td>${fmtN(d.qty)}</td><td>${fmt(d.rev)}</td><td><div style="display:flex;align-items:center;gap:6px"><div class="progress-wrap" style="width:50px"><div class="progress-bar" style="width:${Math.round(d.rev/maxRev*100)}%"></div></div><span style="font-size:11px;color:#999">${Math.round(d.rev/maxRev*100)}%</span></div></td></tr>`).join('')}
+        </tbody></table>
+      </div>
+    </div>
+
+    <div id="sec-clientes" class="section">
+      <div class="sec-label">Métricas de clientes</div>
+      <div class="kpis">
+        <div class="kpi"><div class="kpi-label">Total clientes</div><div class="kpi-value">${fmtN(custList.length)}</div><div class="kpi-sub">con al menos 1 compra</div></div>
+        <div class="kpi"><div class="kpi-label">Tasa de retención</div><div class="kpi-value">${retRate}%</div><div class="kpi-sub">${fmtN(recurringList.length)} compraron 2+ veces</div></div>
+        <div class="kpi"><div class="kpi-label">LTV promedio</div><div class="kpi-value">${fmt(avgLTV)}</div><div class="kpi-sub">por cliente (histórico)</div></div>
+        <div class="kpi"><div class="kpi-label">LTV proyectado 12m</div><div class="kpi-value">${fmt(ltv12)}</div><div class="kpi-sub">basado en frecuencia real</div></div>
+        <div class="kpi"><div class="kpi-label">Días entre compras</div><div class="kpi-value">${Math.round(avgDaysBetween)}</div><div class="kpi-sub">promedio clientes recurrentes</div></div>
+        <div class="kpi"><div class="kpi-label">Pedidos promedio</div><div class="kpi-value">${avgOrders.toFixed(1)}</div><div class="kpi-sub">por cliente</div></div>
+      </div>
+      <div class="grid2">
+        <div class="card"><div class="card-title">Actividad de clientes</div><div class="chart-wrap" style="height:160px"><canvas id="chartCohort"></canvas></div></div>
+        <div class="card">
+          <div class="card-title">Top clientes recurrentes</div>
+          ${topRecurring.length===0?'<div class="empty">Sin clientes recurrentes aún</div>':topRecurring.map(c=>`<div class="row-item"><div class="customer-row"><div class="avatar">${initials(c.name)}</div><div><div style="font-weight:600;font-size:12px">${c.name.split(' ')[0]}</div><div style="font-size:11px;color:#999">${c.orders} pedidos</div></div></div><span style="font-weight:600">${fmt(c.rev)}</span></div>`).join('')}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Top clientes por ingresos</div>
+        <table class="tbl"><thead><tr><th>Cliente</th><th>Pedidos</th><th>Total</th><th>Última compra</th></tr></thead><tbody>
+        ${topCusts.map(c=>`<tr><td><div style="font-weight:600">${c.name}</div><div style="font-size:11px;color:#999;overflow:hidden;text-overflow:ellipsis;max-width:160px;white-space:nowrap">${c.email}</div></td><td>${c.orders}</td><td style="font-weight:600">${fmt(c.rev)}</td><td style="color:#999">${new Date(c.last).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'})}</td></tr>`).join('')}
+        </tbody></table>
+      </div>
+    </div>
+
+    <div id="sec-recompra" class="section">
+      <div class="sec-label">Tasa de recompra mes a mes</div>
+      <div class="card"><div class="chart-wrap" style="height:220px"><canvas id="chartRecompra"></canvas></div></div>
+      <div class="card"><div class="chart-wrap" style="height:220px"><canvas id="chartNuevosVsRec"></canvas></div></div>
+      <div class="card">
+        <div class="card-title">Detalle mensual</div>
+        <table class="tbl"><thead><tr><th>Mes</th><th>Compradores</th><th>Nuevos</th><th>Recurrentes</th><th>% Recompra</th></tr></thead><tbody>
+        ${recompraData.map(r=>`<tr><td style="font-weight:600">${r.label}</td><td>${fmtN(r.total)}</td><td style="color:#185FA5">${fmtN(r.nuevos)}</td><td style="color:#1D9E75">${fmtN(r.recurrentes)}</td><td><span style="font-weight:700;color:${r.pct>=30?'#1D9E75':r.pct>=15?'#EF9F27':'#D85A30'}">${r.pct}%</span></td></tr>`).join('')}
+        </tbody></table>
+      </div>
+    </div>
+
+    <div id="sec-canales" class="section">
+      <div class="sec-label">Fuentes de tráfico y ventas</div>
+      <div class="card"><div class="chart-wrap" style="height:${Math.max(180,sortedUtm.length*40+60)}px"><canvas id="chartUtm"></canvas></div></div>
+      <div class="card">
+        <div class="card-title">Detalle por canal</div>
+        <table class="tbl"><thead><tr><th>Canal</th><th>Pedidos</th><th>Ingresos</th><th>Participación</th></tr></thead><tbody>
+        ${sortedUtm.map(([k,d])=>`<tr><td style="font-weight:600">${k}</td><td>${fmtN(d.orders)}</td><td>${fmt(d.rev)}</td><td><div style="display:flex;align-items:center;gap:6px"><div class="progress-wrap" style="width:60px"><div class="progress-bar" style="width:${Math.round(d.rev/maxUtmRev*100)}%"></div></div><span style="font-size:11px;color:#999">${Math.round(d.rev/maxUtmRev*100)}%</span></div></td></tr>`).join('')}
+        </tbody></table>
+      </div>
+    </div>
+
+    <div id="sec-pedidos" class="section">
+      <div class="sec-label">Historial de pedidos</div>
+      <div class="card">
+        <table class="tbl"><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Items</th><th>Total</th><th>Estado</th></tr></thead><tbody>
+        ${[...orders].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,50).map(o=>`<tr><td style="color:#999;font-size:11px">${o.number}</td><td style="color:#999;font-size:11px;white-space:nowrap">${new Date(o.created_at).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'})}</td><td style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.customer?.name||o.contact_name||'—'}</td><td style="color:#999;font-size:11px">${(o.products||[]).length}</td><td style="font-weight:600">${fmt(parseFloat(o.total||0))}</td><td>${statusBadge(o.payment_status)}</td></tr>`).join('')}
+        </tbody></table>
+        ${orders.length>50?`<div style="text-align:center;padding:12px;font-size:12px;color:#999">Mostrando los últimos 50 de ${fmtN(orders.length)} pedidos</div>`:''}
+      </div>
+    </div>
+  `;
+
+  document.getElementById('sync-time').textContent='Actualizado: '+new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+
+  setTimeout(()=>{
+    mkChart('chartMonthly','bar',mLabels,[{label:'Ingresos',data:mVals,backgroundColor:'#1D9E75',borderRadius:4,borderSkipped:false}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:tickY}}}});
+    mkChart('chartDaily','line',dLabels,[{label:'Ventas',data:dVals,borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.08)',fill:true,tension:0.3,pointRadius:2}],{scales:{x:{grid:{display:false},ticks:{font:{size:10},maxTicksLimit:10}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:tickY}}}});
+    mkChart('chartDow','bar',dowLabels,[{label:'Promedio',data:dowAvg,backgroundColor:'#5DCAA5',borderRadius:4}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:10},callback:tickY}}}});
+    mkChart('chartProd','bar',sortedSkus.slice(0,6).map(([n])=>n.length>20?n.slice(0,20)+'…':n),[{label:'Ingresos',data:sortedSkus.slice(0,6).map(([,d])=>Math.round(d.rev)),backgroundColor:'#1D9E75',borderRadius:4}],{indexAxis:'y',scales:{x:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:10},callback:tickY}},y:{grid:{display:false},ticks:{font:{size:11}}}}});
+    mkChart('chartCohort','doughnut',['Activos (30d)','Inactivos (31-90d)','Sin compras recientes'],[{data:[cohorts.active,cohorts.lapsed,cohorts.old],backgroundColor:['#1D9E75','#EF9F27','#B4B2A9'],borderWidth:0}],{plugins:{legend:{display:true,position:'bottom',labels:{font:{size:11},boxWidth:10,padding:12}}}});
+    mkChart('chartRecompra','line',recompraData.map(r=>r.label),[{label:'% Recompra',data:recompraData.map(r=>r.pct),borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.08)',fill:true,tension:0.3,pointRadius:4,pointBackgroundColor:'#1D9E75'}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:v=>v+'%'},max:100}},plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.raw+'%'}}}});
+    mkChart('chartNuevosVsRec','bar',recompraData.map(r=>r.label),[{label:'Nuevos',data:recompraData.map(r=>r.nuevos),backgroundColor:'#185FA5',borderRadius:3},{label:'Recurrentes',data:recompraData.map(r=>r.recurrentes),backgroundColor:'#1D9E75',borderRadius:3}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11}},stacked:false}},plugins:{legend:{display:true,position:'bottom',labels:{font:{size:11},boxWidth:10,padding:12}}}});
+    mkChart('chartUtm','bar',sortedUtm.map(([k])=>k.length>20?k.slice(0,20)+'…':k),[{label:'Ingresos',data:sortedUtm.map(([,d])=>Math.round(d.rev)),backgroundColor:'#1D9E75',borderRadius:4}],{indexAxis:'y',scales:{x:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:10},callback:tickY}},y:{grid:{display:false},ticks:{font:{size:11}}}}});
+  },150);
+}
+
+async function init(){
+  try{
+    document.getElementById('main').innerHTML='<div class="loading"><div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div><p style="margin-top:1rem">Cargando datos de Bloom Life...</p></div>';
+    const[orders,products]=await Promise.all([fetchAll(),apiFetch('products?per_page=200')]);
+    ALL_ORDERS=orders;
+    ALL_PRODUCTS=products;
+    FILTERED_ORDERS=[...ALL_ORDERS];
+    renderAll();
+  }catch(e){
+    document.getElementById('main').innerHTML='<div class="error">Error al conectar: '+e.message+'. El servidor puede estar iniciando — esperá 40 segundos y recargá la página.</div>';
+    document.getElementById('sync-time').textContent='Error de conexión';
+  }
+}
+</script>
+</body>
+</html>
