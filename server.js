@@ -277,6 +277,30 @@ app.get('/ver-webhooks', async (req, res) => {
   }
 });
 
+// ── STOCK DE SUPLEMENTOS INDIVIDUALES ────────────────────────────────────────
+// Visitá https://bloomlife-proxy.onrender.com/stock-suplementos
+// Muestra solo los productos individuales (sin combos) con su stock actual
+app.get('/stock-suplementos', async (req, res) => {
+  try {
+    const response = await fetch(BASE + '/products?per_page=200', { headers: HEADERS });
+    const productos = await response.json();
+    const suplementos = productos
+      .filter(p => {
+        const nombre = p.name?.es || p.name?.en || Object.values(p.name || {})[0] || '';
+        return !nombre.toLowerCase().includes('combo');
+      })
+      .map(p => {
+        const nombre = p.name?.es || p.name?.en || Object.values(p.name || {})[0] || '';
+        const stock = p.variants?.[0]?.stock;
+        return { nombre, stock: stock !== null && stock !== undefined ? stock : 'sin control' };
+      })
+      .sort((a, b) => a.nombre.localeCompare(b.nombre));
+    res.json({ total: suplementos.length, suplementos });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── PROXY PARA EL DASHBOARD (igual que antes) ─────────────────────────────────
 app.get('/api/*', async (req, res) => {
   try {
