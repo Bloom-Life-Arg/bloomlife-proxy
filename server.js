@@ -196,7 +196,7 @@ async function procesarOrden(orden, operacion) {
   const productos = orden.products || [];
   const log = [];
   for (const item of productos) {
-    const nombreProducto = item.name?.es || item.name?.en || Object.values(item.name || {})[0] || '';
+    const nombreProducto = typeof item.name === 'string' ? item.name : (item.name?.es || item.name?.en || Object.values(item.name || {})[0] || '');
     const cantidadVendida = item.quantity || 1;
     const componentes = COMBO_COMPONENTES[nombreProducto.trim()];
     if (componentes) {
