@@ -184,7 +184,6 @@ async function reintegrarStockPorSKU(sku, cantidad) {
 }
 
 async function procesarOrden(orden, operacion) {
-  // Si la orden no trae productos, la buscamos en la API
   if (!orden.products || orden.products.length === 0) {
     const ordenId = orden.id;
     console.log(`[WEBHOOK] Buscando productos de orden #${ordenId} en la API...`);
@@ -311,11 +310,55 @@ app.get('/stock-suplementos', async (req, res) => {
   }
 });
 
+// ── CREAR ORDEN B2B EN TIENDA NUBE ───────────────────────────────────────────
+app.post('/api/crear-orden-b2b', async (req, res) => {
+  try {
+    const { cliente, productos, notas } = req.body;
+
+    if (!productos || !productos.length) {
+      return res.status(400).json({ ok: false, error: 'Faltan productos' });
+    }
+
+    const body = {
+      payment_status: 'pending',
+      shipping_status: 'unpacked',
+      note: notas || '',
+      contact_name: cliente?.nombre || '',
+      contact_email: cliente?.email || '',
+      products: productos.map(p => ({
+        variant_id: p.variantId,
+        quantity: p.cantidad,
+        price: String(p.precio),
+      })),
+    };
+
+    const response = await fetch(BASE + '/orders', {
+      method: 'POST',
+      headers: HEADERS,
+      body: JSON.stringify(body),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('[B2B] Error creando orden en TN:', data);
+      return res.status(400).json({ ok: false, error: data });
+    }
+
+    console.log(`[B2B] Orden #${data.number} creada para ${cliente?.nombre}`);
+    res.json({ ok: true, orden: data });
+
+  } catch (e) {
+    console.error('[B2B] Error:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ── PROXY PARA EL DASHBOARD ───────────────────────────────────────────────────
 app.get('/api/*', async (req, res) => {
   try {
-    const apiPath = req.params[0];
-    const query = req.url.split('?')[1] ? '?' + req.url.split('?')[1] : '';
+    const apiPath = req.path.replace(/^\/api\//, '');
+    const query = req.url.includes('?') ? '?' + req.url.split('?')[1] : '';
     const url = BASE + '/' + apiPath + query;
     const response = await fetch(url, { headers: HEADERS });
     res.json(await response.json());
