@@ -483,6 +483,26 @@ function renderAll(){
   const subRev6m=subPaid.filter(o=>new Date(o.created_at)>=d6m).reduce((s,o)=>s+parseFloat(o.total||0),0);
   const subRevPct6m=rev6m>0?(subRev6m/rev6m*100).toFixed(1):0;
  
+  // Run Rate anualizado último mes
+  const rrLastMonth=revM*12;
+ 
+  // Run Rate anualizado últimos 12 meses (revenue real)
+  const rev12m=paid12m.reduce((s,o)=>s+parseFloat(o.total||0),0);
+ 
+  // MoM últimos 3 meses
+  const m2=new Date(now.getFullYear(),now.getMonth()-2,1);
+  const m3start=new Date(now.getFullYear(),now.getMonth()-3,1);
+  const revM2=paid.filter(o=>{const d=new Date(o.created_at);return d>=m2&&d<m1;}).reduce((s,o)=>s+parseFloat(o.total||0),0);
+  const revM3=paid.filter(o=>{const d=new Date(o.created_at);return d>=m3start&&d<m2;}).reduce((s,o)=>s+parseFloat(o.total||0),0);
+  const momM1=revM2>0?((revL-revM2)/revM2*100).toFixed(1):null;
+  const momM2=revM3>0?((revM2-revM3)/revM3*100).toFixed(1):null;
+  const momCurr=revL>0?((revM-revL)/revL*100).toFixed(1):null;
+  const mNames3=[
+    mNames[m3start.getMonth()]+"'"+String(m3start.getFullYear()).slice(2),
+    mNames[m2.getMonth()]+"'"+String(m2.getFullYear()).slice(2),
+    mNames[m1.getMonth()]+"'"+String(m1.getFullYear()).slice(2),
+  ];
+ 
   // Nuevos clientes por mes (últimos 6 meses) para gráfico
   const newClientsByMonth=mLast6.map(k=>{
     const[y,mo]=k.split('-'),mStart=new Date(parseInt(y),parseInt(mo)-1,1),mEnd=new Date(parseInt(y),parseInt(mo),1);
@@ -540,6 +560,41 @@ function renderAll(){
         <div class="kpi-label">AOV (ticket prom.)</div>
         <div class="kpi-value">${fmt(avgTicket)}</div>
         <div class="kpi-sub">por pedido pagado</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Revenue últimos 6m</div>
+        <div class="kpi-value">${fmt(rev6m)}</div>
+        <div class="kpi-sub">${fmtN(clients6m)} clientes únicos</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Run Rate (mes actual × 12)</div>
+        <div class="kpi-value">${fmt(rrLastMonth)}</div>
+        <div class="kpi-sub">anualizado último mes</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Run Rate (últimos 12m)</div>
+        <div class="kpi-value">${fmt(rev12m)}</div>
+        <div class="kpi-sub">revenue real 12 meses</div>
+      </div>
+    </div>
+ 
+    <!-- MoM últimos 3 meses -->
+    <div class="sec-label">🔹 Tendencia MoM — últimos 3 meses</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.25rem">
+      <div class="kpi">
+        <div class="kpi-label">${mNames3[0]}</div>
+        <div class="kpi-value">${fmt(revM3)}</div>
+        <div class="kpi-sub">${momM2!==null?(parseFloat(momM2)>=0?'<span class="up">▲ '+momM2+'%</span>':'<span class="down">▼ '+Math.abs(momM2)+'%</span>')+' vs mes ant.':'—'}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">${mNames3[1]}</div>
+        <div class="kpi-value">${fmt(revM2)}</div>
+        <div class="kpi-sub">${momM1!==null?(parseFloat(momM1)>=0?'<span class="up">▲ '+momM1+'%</span>':'<span class="down">▼ '+Math.abs(momM1)+'%</span>')+' vs mes ant.':'—'}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">${mNames3[2]} (mes actual)</div>
+        <div class="kpi-value">${fmt(revM)}</div>
+        <div class="kpi-sub">${momCurr!==null?(parseFloat(momCurr)>=0?'<span class="up">▲ '+momCurr+'%</span>':'<span class="down">▼ '+Math.abs(momCurr)+'%</span>')+' vs mes ant.':'—'}</div>
       </div>
     </div>
  
