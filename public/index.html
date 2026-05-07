@@ -526,10 +526,49 @@ function renderAll(){
   const subLastMonthKey=subMonthKeys[subMonthKeys.length-1];
   const subMRRActual=subMonthlyMap[subLastMonthKey]?.rev||0;
 
-  // Venta esperada próximos 7 días por suscripciones activas
-  // Estimamos: suscriptores activos × ticket promedio / 30 × 7
+  // Venta esperada próximos 7 días — frecuencia real desde API /orders/{id}/subscriptions
+  // Prioridad: 1) API cache (real, fetched en init), 2) historial de cobros, 3) default 30d
   const subAvgTicketActive=activeSubLast30.length&&subMRRActual?subMRRActual/activeSubLast30.length:avgSubTicket;
-  const subExpected7d=Math.round(activeSubLast30.length*(subAvgTicketActive/30)*7);
+  const now7d=new Date(now);now7d.setDate(now.getDate()+7);
+  let subExpected7d=0;
+  // Construir historial de cobros por suscriptor
+  const subHistorial={};
+  subPaid.forEach(o=>{
+    const e=o.customer?.email;if(!e)return;
+    if(!subHistorial[e])subHistorial[e]=[];
+    subHistorial[e].push({fecha:new Date(o.created_at),monto:parseFloat(o.total||0),id:o.id});
+  });
+  // Mapa email → orden inicial del suscriptor (tiene la frecuencia en cache)
+  const subInitByEmail=window._subInitByEmail||{};
+  // Para cada suscriptor activo calcular próximo cobro
+  activeSubLast30.forEach(sub=>{
+    const hist=subHistorial[sub.email];
+    if(!hist||hist.length<1)return;
+    hist.sort((a,b)=>a.fecha-b.fecha);
+    const lastCobro=hist[hist.length-1];
+    // 1) Frecuencia desde cache de API (orden inicial del suscriptor)
+    const initOrder=subInitByEmail[sub.email];
+    let freqDays=initOrder?(window.SUB_FREQ_CACHE[initOrder.id]||null):null;
+    // 2) Si no hay dato de API o es el primer cobro, calcular desde historial
+    if(!freqDays&&hist.length>=2){
+      let totalDays=0;
+      for(let i=1;i<hist.length;i++){
+        totalDays+=(hist[i].fecha-hist[i-1].fecha)/(1000*3600*24);
+      }
+      const calc=Math.round(totalDays/(hist.length-1));
+      if(calc>=7&&calc<=365)freqDays=calc;
+    }
+    // 3) Default 30 días si no hay ningún dato disponible
+    if(!freqDays||freqDays<7)freqDays=30;
+    // Próximo cobro = último cobro + frecuencia
+    const nextCobro=new Date(lastCobro.fecha);
+    nextCobro.setDate(nextCobro.getDate()+freqDays);
+    // Si cae en los próximos 7 días → sumar monto del último cobro
+    if(nextCobro>=now&&nextCobro<=now7d){
+      subExpected7d+=lastCobro.monto;
+    }
+  });
+  subExpected7d=Math.round(subExpected7d);
 
   // Run Rate anualizado — último mes CERRADO (no el mes en curso)
   const rrLastMonth=revL*12;
@@ -885,8 +924,8 @@ function renderAll(){
       <div class="signal-card ${subExpected7d>0?'good':'neutral'}">
         <div class="signal-label">Esperado próx. 7 días</div>
         <div class="signal-value" style="font-size:20px">${fmt(subExpected7d)}</div>
-        <div class="signal-sub">cobros estimados por suscripciones</div>
-        <span class="signal-rule neutral">MRR ÷ 30 × 7 días</span>
+        <div class="signal-sub">cobros por vencer en los próximos 7 días</div>
+        <span class="signal-rule neutral">frecuencia real desde TN · historial como respaldo</span>
       </div>
 
     </div>
@@ -1397,12 +1436,63 @@ function renderAll(){
   renderFinances();
 }
 
+// Cache de frecuencias de suscripción por order_id
+window.SUB_FREQ_CACHE = {};
+
+// Fetch frecuencia real desde /orders/{id}/subscriptions
+async function fetchSubFrequency(orderId){
+  if(window.SUB_FREQ_CACHE[orderId]!==undefined)return window.SUB_FREQ_CACHE[orderId];
+  try{
+    const data=await apiFetch('orders/'+orderId+'/subscriptions');
+    // data puede ser array o un objeto; buscamos interval_days o frequency
+    let days=null;
+    const sub=Array.isArray(data)?data[0]:data;
+    if(sub){
+      // TiendaNube puede traer: interval_days, frequency, recurrence_interval, period
+      days=sub.interval_days||sub.frequency||sub.recurrence_interval||null;
+      // Si viene como string "monthly"/"weekly" convertir
+      if(days==='monthly'||days===30)days=30;
+      if(days==='weekly'||days===7)days=7;
+      if(days==='biweekly'||days===14)days=14;
+      if(days==='quarterly'||days===90)days=90;
+      if(typeof days==='number'&&days>0){}
+      else days=null;
+    }
+    window.SUB_FREQ_CACHE[orderId]=days;
+    return days;
+  }catch(e){
+    window.SUB_FREQ_CACHE[orderId]=null;
+    return null;
+  }
+}
+
 async function init(){
   try{
     document.getElementById('main').innerHTML='<div class="loading"><div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div><p style="margin-top:1rem">Cargando datos de Bloom Life...</p></div>';
     const[orders,products,abandoned]=await Promise.all([fetchAllOrders(),apiFetch('products?per_page=200'),fetchAbandoned()]);
     ALL_ORDERS=orders;ALL_PRODUCTS=products;ALL_ABANDONED=abandoned;
     FILTERED_ORDERS=[...ALL_ORDERS];
+
+    // Pre-fetch frecuencias de suscripción para órdenes iniciales activas
+    // Solo para suscriptores activos (última orden ≤45 días) — máx 50 llamadas en paralelo
+    const subInitOrders=ALL_ORDERS.filter(o=>
+      o.is_subscription_initial&&
+      o.payment_status==='paid'&&
+      (new Date()-new Date(o.created_at))/(1000*3600*24)<=400 // solo últimos 13 meses
+    );
+    // Agrupar por email y tomar la más reciente por suscriptor
+    const subInitByEmail={};
+    subInitOrders.forEach(o=>{
+      const e=o.customer?.email;if(!e)return;
+      if(!subInitByEmail[e]||o.created_at>subInitByEmail[e].created_at)subInitByEmail[e]=o;
+    });
+    const toFetch=Object.values(subInitByEmail).slice(0,80); // límite 80 llamadas
+    // Fetch en lotes de 10 para no saturar
+    for(let i=0;i<toFetch.length;i+=10){
+      await Promise.all(toFetch.slice(i,i+10).map(o=>fetchSubFrequency(o.id)));
+    }
+    window._subInitByEmail=subInitByEmail;
+
     renderAll();
   }catch(e){
     document.getElementById('main').innerHTML='<div class="error">Error al conectar: '+e.message+'. Esperá 40 segundos y recargá.</div>';
