@@ -513,14 +513,17 @@ function renderAll(){
   };
   const recompra30=calcRecompra(30),recompra60=calcRecompra(60),recompra90=calcRecompra(90);
 
-  // Suscripción % del revenue últimos 6m
+  // Suscripción % del revenue últimos 6m (para card principal)
   const subRev6m=subPaid.filter(o=>new Date(o.created_at)>=d6m).reduce((s,o)=>s+parseFloat(o.total||0),0);
   const subRevPct6m=rev6m>0?(subRev6m/rev6m*100).toFixed(1):0;
 
-  // % suscripción vs mes anterior
+  // % suscripción mes actual vs mes anterior — misma unidad, comparación válida
+  const subRevThisMonth=subPaid.filter(o=>new Date(o.created_at)>=m0).reduce((s,o)=>s+parseFloat(o.total||0),0);
+  const subRevPctThisMonth=revM>0?(subRevThisMonth/revM*100).toFixed(1):0;
   const subRevPrevMonth=subPaid.filter(o=>{const d=new Date(o.created_at);return d>=m1&&d<m0;}).reduce((s,o)=>s+parseFloat(o.total||0),0);
   const subRevPrevPct=revL>0?(subRevPrevMonth/revL*100).toFixed(1):0;
-  const subPctDelta=(parseFloat(subRevPct6m)-parseFloat(subRevPrevPct)).toFixed(1);
+  // Delta en puntos porcentuales: mes actual vs mes anterior (ambos son % del revenue de ese mes)
+  const subPctDelta=(parseFloat(subRevPctThisMonth)-parseFloat(subRevPrevPct)).toFixed(1);
 
   // MRR real = suma del último cobro de cada suscriptor activo (no el mes calendario)
   // Esto representa exactamente cuánto generan las suscripciones activas hoy
@@ -924,10 +927,10 @@ function renderAll(){
         <span class="signal-rule ${signalClass(recompra90,30,15)}">${recompra90>=30?'≥ 30% — Bien':recompra90>=15?'≥ 15% — Regular':'< 15% — Atención'}</span>
       </div>
 
-      <div class="signal-card ${subRevPct6m>0?'good':'neutral'}">
+      <div class="signal-card ${subRevPctThisMonth>0?'good':'neutral'}">
         <div class="signal-label">Suscripción % del revenue</div>
-        <div class="signal-value">${subRevPct6m}%</div>
-        <div class="signal-sub">${subRevPct6m>0?fmt(subRev6m)+' (6m)':'Sin revenue por suscripción'}</div>
+        <div class="signal-value">${subRevPctThisMonth}%</div>
+        <div class="signal-sub">${subRevThisMonth>0?fmt(subRevThisMonth)+' este mes':'Sin revenue por suscripción'}</div>
         <span class="signal-rule ${parseFloat(subPctDelta)>=0?'good':'warn'}">${parseFloat(subPctDelta)>=0?'▲':'▼'} ${Math.abs(subPctDelta)}pp vs mes ant. (${subRevPrevPct}%)</span>
       </div>
 
