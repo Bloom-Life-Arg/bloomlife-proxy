@@ -522,34 +522,48 @@ function renderAll(){
   const subRevPrevPct=revL>0?(subRevPrevMonth/revL*100).toFixed(1):0;
   const subPctDelta=(parseFloat(subRevPct6m)-parseFloat(subRevPrevPct)).toFixed(1);
 
-  // Valor mensual de suscripciones activas (MRR real = último mes cobrado)
-  const subLastMonthKey=subMonthKeys[subMonthKeys.length-1];
-  const subMRRActual=subMonthlyMap[subLastMonthKey]?.rev||0;
+  // MRR real = suma del último cobro de cada suscriptor activo (no el mes calendario)
+  // Esto representa exactamente cuánto generan las suscripciones activas hoy
+  const subHistorialMRR={};
+  subPaid.forEach(o=>{
+    const e=o.customer?.email;if(!e)return;
+    if(!subHistorialMRR[e]||o.created_at>subHistorialMRR[e].fecha){
+      subHistorialMRR[e]={fecha:o.created_at,monto:parseFloat(o.total||0)};
+    }
+  });
+  // Solo suscriptores activos (última compra ≤45 días)
+  const subMRRActual=activeSubLast30.reduce((s,sub)=>{
+    return s+(subHistorialMRR[sub.email]?.monto||0);
+  },0);
+  // Ticket promedio = MRR real / cantidad de suscriptores activos
+  const subAvgTicketActive=activeSubLast30.length>0?Math.round(subMRRActual/activeSubLast30.length):0;
 
   // Venta esperada próximos 7 días — frecuencia real desde API /orders/{id}/subscriptions
   // Prioridad: 1) API cache (real, fetched en init), 2) historial de cobros, 3) default 30d
-  const subAvgTicketActive=activeSubLast30.length&&subMRRActual?subMRRActual/activeSubLast30.length:avgSubTicket;
   const now7d=new Date(now);now7d.setDate(now.getDate()+7);
   let subExpected7d=0;
-  // Construir historial de cobros por suscriptor
+  let subExpected7dCount=0; // cantidad de cobros exactos esperados
+  // Construir historial completo de cobros por suscriptor (ordenado)
   const subHistorial={};
   subPaid.forEach(o=>{
     const e=o.customer?.email;if(!e)return;
     if(!subHistorial[e])subHistorial[e]=[];
-    subHistorial[e].push({fecha:new Date(o.created_at),monto:parseFloat(o.total||0),id:o.id});
+    subHistorial[e].push({fecha:new Date(o.created_at),monto:parseFloat(o.total||0)});
   });
-  // Mapa email → orden inicial del suscriptor (tiene la frecuencia en cache)
+  // Mapa email → orden inicial del suscriptor (tiene la frecuencia en cache API)
   const subInitByEmail=window._subInitByEmail||{};
-  // Para cada suscriptor activo calcular próximo cobro
+  // Para cada suscriptor activo calcular próximo cobro EXACTO
   activeSubLast30.forEach(sub=>{
     const hist=subHistorial[sub.email];
     if(!hist||hist.length<1)return;
     hist.sort((a,b)=>a.fecha-b.fecha);
     const lastCobro=hist[hist.length-1];
-    // 1) Frecuencia desde cache de API (orden inicial del suscriptor)
+
+    // Fuente 1: frecuencia real desde API (exacta, sin estimación)
     const initOrder=subInitByEmail[sub.email];
     let freqDays=initOrder?(window.SUB_FREQ_CACHE[initOrder.id]||null):null;
-    // 2) Si no hay dato de API o es el primer cobro, calcular desde historial
+
+    // Fuente 2: historial de cobros reales (2+ cobros = podemos calcular exacto)
     if(!freqDays&&hist.length>=2){
       let totalDays=0;
       for(let i=1;i<hist.length;i++){
@@ -558,14 +572,17 @@ function renderAll(){
       const calc=Math.round(totalDays/(hist.length-1));
       if(calc>=7&&calc<=365)freqDays=calc;
     }
-    // 3) Default 30 días si no hay ningún dato disponible
-    if(!freqDays||freqDays<7)freqDays=30;
-    // Próximo cobro = último cobro + frecuencia
+
+    // Sin dato exacto → NO incluir (mejor omitir que inventar una fecha)
+    if(!freqDays||freqDays<7)return;
+
+    // Próximo cobro exacto = último cobro + frecuencia real
     const nextCobro=new Date(lastCobro.fecha);
     nextCobro.setDate(nextCobro.getDate()+freqDays);
-    // Si cae en los próximos 7 días → sumar monto del último cobro
+
     if(nextCobro>=now&&nextCobro<=now7d){
       subExpected7d+=lastCobro.monto;
+      subExpected7dCount++;
     }
   });
   subExpected7d=Math.round(subExpected7d);
@@ -922,10 +939,10 @@ function renderAll(){
       </div>
 
       <div class="signal-card ${subExpected7d>0?'good':'neutral'}">
-        <div class="signal-label">Esperado próx. 7 días</div>
+        <div class="signal-label">Cobros próx. 7 días</div>
         <div class="signal-value" style="font-size:20px">${fmt(subExpected7d)}</div>
-        <div class="signal-sub">cobros por vencer en los próximos 7 días</div>
-        <span class="signal-rule neutral">frecuencia real desde TN · historial como respaldo</span>
+        <div class="signal-sub">${subExpected7dCount} cobro${subExpected7dCount!==1?'s':''} exacto${subExpected7dCount!==1?'s':''} identificado${subExpected7dCount!==1?'s':''}</div>
+        <span class="signal-rule neutral">frecuencia real desde TN · sin estimaciones</span>
       </div>
 
     </div>
