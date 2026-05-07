@@ -555,37 +555,50 @@ function renderAll(){
   });
   // Mapa email → orden inicial del suscriptor (tiene la frecuencia en cache API)
   const subInitByEmail=window._subInitByEmail||{};
-  // Para cada suscriptor activo calcular próximo cobro EXACTO
+  // Para cada suscriptor activo calcular próximo/s cobro/s exacto/s
   activeSubLast30.forEach(sub=>{
     const hist=subHistorial[sub.email];
     if(!hist||hist.length<1)return;
     hist.sort((a,b)=>a.fecha-b.fecha);
     const lastCobro=hist[hist.length-1];
 
-    // Fuente 1: frecuencia real desde API (exacta, sin estimación)
+    // Fuente 1: frecuencia real desde API (exacta)
     const initOrder=subInitByEmail[sub.email];
     let freqDays=initOrder?(window.SUB_FREQ_CACHE[initOrder.id]||null):null;
 
-    // Fuente 2: historial de cobros reales (2+ cobros = podemos calcular exacto)
+    // Fuente 2: mediana de intervalos entre cobros reales (robusta contra outliers)
     if(!freqDays&&hist.length>=2){
-      let totalDays=0;
+      const intervals=[];
       for(let i=1;i<hist.length;i++){
-        totalDays+=(hist[i].fecha-hist[i-1].fecha)/(1000*3600*24);
+        intervals.push((hist[i].fecha-hist[i-1].fecha)/(1000*3600*24));
       }
-      const calc=Math.round(totalDays/(hist.length-1));
+      intervals.sort((a,b)=>a-b);
+      const mid=Math.floor(intervals.length/2);
+      const median=intervals.length%2!==0
+        ?intervals[mid]
+        :(intervals[mid-1]+intervals[mid])/2;
+      const calc=Math.round(median);
       if(calc>=7&&calc<=365)freqDays=calc;
     }
 
-    // Sin dato exacto → NO incluir (mejor omitir que inventar una fecha)
+    // Sin frecuencia conocida → no incluir
     if(!freqDays||freqDays<7)return;
 
-    // Próximo cobro exacto = último cobro + frecuencia real
-    const nextCobro=new Date(lastCobro.fecha);
+    // Proyectar TODOS los cobros que caen en la ventana de 7 días
+    // (cubre suscripciones semanales que pueden cobrar 2 veces en 7 días)
+    let nextCobro=new Date(lastCobro.fecha);
     nextCobro.setDate(nextCobro.getDate()+freqDays);
-
-    if(nextCobro>=now&&nextCobro<=now7d){
+    // Avanzar hasta llegar a la ventana actual (por si hay ciclos pasados sin cobrar)
+    while(nextCobro<now){
+      nextCobro=new Date(nextCobro);
+      nextCobro.setDate(nextCobro.getDate()+freqDays);
+    }
+    // Sumar todos los cobros que caen dentro del próximo 7 días
+    while(nextCobro<=now7d){
       subExpected7d+=lastCobro.monto;
       subExpected7dCount++;
+      nextCobro=new Date(nextCobro);
+      nextCobro.setDate(nextCobro.getDate()+freqDays);
     }
   });
   subExpected7d=Math.round(subExpected7d);
