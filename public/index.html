@@ -603,6 +603,71 @@ function renderAll(){
   });
   subExpected7d=Math.round(subExpected7d);
 
+  // ── Cobros próximos 15 días ───────────────────────────────
+  const now15d=new Date(now);now15d.setDate(now.getDate()+15);
+  let subExpected15d=0,subExpected15dCount=0;
+  activeSubLast30.forEach(sub=>{
+    const hist=subHistorial[sub.email];
+    if(!hist||hist.length<1)return;
+    hist.sort((a,b)=>a.fecha-b.fecha);
+    const lastCobro=hist[hist.length-1];
+    const initOrder=subInitByEmail[sub.email];
+    let freqDays=initOrder?(window.SUB_FREQ_CACHE[initOrder.id]||null):null;
+    if(!freqDays&&hist.length>=2){
+      const intervals=[];
+      for(let i=1;i<hist.length;i++)intervals.push((hist[i].fecha-hist[i-1].fecha)/(1000*3600*24));
+      intervals.sort((a,b)=>a-b);
+      const mid=Math.floor(intervals.length/2);
+      const median=intervals.length%2!==0?intervals[mid]:(intervals[mid-1]+intervals[mid])/2;
+      const calc=Math.round(median);
+      if(calc>=7&&calc<=365)freqDays=calc;
+    }
+    if(!freqDays||freqDays<7)return;
+    let nextCobro=new Date(lastCobro.fecha);
+    nextCobro.setDate(nextCobro.getDate()+freqDays);
+    while(nextCobro<now){nextCobro=new Date(nextCobro);nextCobro.setDate(nextCobro.getDate()+freqDays);}
+    while(nextCobro<=now15d){subExpected15d+=lastCobro.monto;subExpected15dCount++;nextCobro=new Date(nextCobro);nextCobro.setDate(nextCobro.getDate()+freqDays);}
+  });
+  subExpected15d=Math.round(subExpected15d);
+
+  // ── Cobros hasta fin de mes ───────────────────────────────
+  const endOfMonth=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59); // último segundo del mes
+  let subExpectedEOM=0,subExpectedEOMCount=0;
+  activeSubLast30.forEach(sub=>{
+    const hist=subHistorial[sub.email];
+    if(!hist||hist.length<1)return;
+    hist.sort((a,b)=>a.fecha-b.fecha);
+    const lastCobro=hist[hist.length-1];
+    const initOrder=subInitByEmail[sub.email];
+    let freqDays=initOrder?(window.SUB_FREQ_CACHE[initOrder.id]||null):null;
+    if(!freqDays&&hist.length>=2){
+      const intervals=[];
+      for(let i=1;i<hist.length;i++)intervals.push((hist[i].fecha-hist[i-1].fecha)/(1000*3600*24));
+      intervals.sort((a,b)=>a-b);
+      const mid=Math.floor(intervals.length/2);
+      const median=intervals.length%2!==0?intervals[mid]:(intervals[mid-1]+intervals[mid])/2;
+      const calc=Math.round(median);
+      if(calc>=7&&calc<=365)freqDays=calc;
+    }
+    if(!freqDays||freqDays<7)return;
+    let nextCobro=new Date(lastCobro.fecha);
+    nextCobro.setDate(nextCobro.getDate()+freqDays);
+    while(nextCobro<now){nextCobro=new Date(nextCobro);nextCobro.setDate(nextCobro.getDate()+freqDays);}
+    while(nextCobro<=endOfMonth){subExpectedEOM+=lastCobro.monto;subExpectedEOMCount++;nextCobro=new Date(nextCobro);nextCobro.setDate(nextCobro.getDate()+freqDays);}
+  });
+  subExpectedEOM=Math.round(subExpectedEOM);
+
+  // ── Progreso del MRR mensual ──────────────────────────────
+  // Ya cobrado este mes (real, de subPaid) vs total esperado del mes completo
+  // Total esperado = ya cobrado + lo que falta hasta fin de mes
+  const subMonthTotal=subRevThisMonth+subExpectedEOM; // cobrado + por cobrar
+  const subMonthProgress=subMonthTotal>0?Math.round(subRevThisMonth/subMonthTotal*100):0;
+  // Cuántos suscriptores activos ya cobraron este mes
+  const subCobraronEsteMes=new Set(
+    subPaid.filter(o=>new Date(o.created_at)>=m0).map(o=>o.customer?.email).filter(Boolean)
+  ).size;
+  const subPorCobrarEsteMes=Math.max(0,activeSubLast30.length-subCobraronEsteMes);
+
   // Run Rate anualizado — último mes CERRADO (no el mes en curso)
   const rrLastMonth=revL*12;
 
@@ -947,20 +1012,71 @@ function renderAll(){
         <span class="signal-rule ${parseFloat(subPctDelta)>=0?'good':'warn'}">${parseFloat(subPctDelta)>=0?'▲':'▼'} ${Math.abs(subPctDelta)}pp vs mes ant. (${subRevPrevPct}%)</span>
       </div>
 
-      <div class="signal-card ${subMRRActual>0?'good':'neutral'}">
-        <div class="signal-label">MRR suscripciones</div>
-        <div class="signal-value" style="font-size:20px">${fmt(subMRRActual)}</div>
-        <div class="signal-sub">valor mensual suscriptores activos</div>
-        <span class="signal-rule neutral">${fmtN(activeSubLast30.length)} activos · ticket prom. ${fmt(subAvgTicketActive)}</span>
+    </div>
+
+    <!-- Suscripciones — detalle de cobros -->
+    <div class="sec-label">🔹 Suscripciones activas — cobros del mes</div>
+
+    <!-- Barra de progreso MRR mensual -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-title">Progreso MRR mensual — ${mNames[now.getMonth()]} ${now.getFullYear()}</div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px">
+        <span style="color:#1D9E75;font-weight:600">✓ Cobrado: ${fmt(subRevThisMonth)}</span>
+        <span style="color:#999">Por cobrar: ${fmt(subExpectedEOM)}</span>
+        <span style="font-weight:700">Total esperado: ${fmt(subMonthTotal)}</span>
       </div>
+      <div style="background:#f0f0ec;border-radius:6px;height:14px;overflow:hidden">
+        <div style="width:${subMonthProgress}%;background:#1D9E75;height:100%;border-radius:6px;transition:width .5s;display:flex;align-items:center;justify-content:flex-end;padding-right:6px">
+          <span style="font-size:10px;font-weight:700;color:#fff">${subMonthProgress>10?subMonthProgress+'%':''}</span>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#999;margin-top:8px">
+        <span>${fmtN(subCobraronEsteMes)} suscriptores cobrados este mes</span>
+        <span>${fmtN(subPorCobrarEsteMes)} pendientes de cobrar</span>
+        <span>${fmtN(activeSubLast30.length)} activos totales</span>
+      </div>
+    </div>
+
+    <!-- Cards de cobros por ventana temporal -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.25rem">
 
       <div class="signal-card ${subExpected7d>0?'good':'neutral'}">
         <div class="signal-label">Cobros próx. 7 días</div>
         <div class="signal-value" style="font-size:20px">${fmt(subExpected7d)}</div>
-        <div class="signal-sub">${subExpected7dCount} cobro${subExpected7dCount!==1?'s':''} exacto${subExpected7dCount!==1?'s':''} identificado${subExpected7dCount!==1?'s':''}</div>
-        <span class="signal-rule neutral">frecuencia real desde TN · sin estimaciones</span>
+        <div class="signal-sub">${subExpected7dCount} cobro${subExpected7dCount!==1?'s':''} identificado${subExpected7dCount!==1?'s':''}</div>
+        <span class="signal-rule neutral">frecuencia real · sin estimaciones</span>
       </div>
 
+      <div class="signal-card ${subExpected15d>0?'good':'neutral'}">
+        <div class="signal-label">Cobros próx. 15 días</div>
+        <div class="signal-value" style="font-size:20px">${fmt(subExpected15d)}</div>
+        <div class="signal-sub">${subExpected15dCount} cobro${subExpected15dCount!==1?'s':''} identificado${subExpected15dCount!==1?'s':''}</div>
+        <span class="signal-rule neutral">frecuencia real · sin estimaciones</span>
+      </div>
+
+      <div class="signal-card ${subExpectedEOM>0?'good':'neutral'}">
+        <div class="signal-label">Cobros hasta fin de mes</div>
+        <div class="signal-value" style="font-size:20px">${fmt(subExpectedEOM)}</div>
+        <div class="signal-sub">${subExpectedEOMCount} cobro${subExpectedEOMCount!==1?'s':''} identificado${subExpectedEOMCount!==1?'s':''}</div>
+        <span class="signal-rule neutral">frecuencia real · sin estimaciones</span>
+      </div>
+
+    </div>
+
+    <!-- MRR y ticket promedio -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.25rem">
+      <div class="signal-card ${subMRRActual>0?'good':'neutral'}">
+        <div class="signal-label">MRR suscripciones</div>
+        <div class="signal-value" style="font-size:20px">${fmt(subMRRActual)}</div>
+        <div class="signal-sub">valor del próximo ciclo de cada activo</div>
+        <span class="signal-rule neutral">${fmtN(activeSubLast30.length)} activos · ticket prom. ${fmt(subAvgTicketActive)}</span>
+      </div>
+      <div class="signal-card neutral">
+        <div class="signal-label">Revenue sub este mes</div>
+        <div class="signal-value" style="font-size:20px">${fmt(subRevThisMonth)}</div>
+        <div class="signal-sub">${subRevPctThisMonth}% del revenue total del mes</div>
+        <span class="signal-rule ${parseFloat(subPctDelta)>=0?'good':'warn'}">${parseFloat(subPctDelta)>=0?'▲':'▼'} ${Math.abs(subPctDelta)}pp vs mes ant. (${subRevPrevPct}%)</span>
+      </div>
     </div>
 
   </div>
