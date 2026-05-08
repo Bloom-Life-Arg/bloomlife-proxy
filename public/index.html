@@ -296,6 +296,11 @@ window.showSection=function(id){
   if(id==='pagos-prov')    renderFinProv();
   if(id==='inventario')    renderInventario();
   if(id==='cashflow')      renderCashFlow();
+  if(id==='resumen'&&window._subDailyReady){
+    setTimeout(()=>{
+      if(window._subDailyReady)window._subDailyReady();
+    },100);
+  }
 };
 
 async function apiFetch(path){const r=await fetch(PROXY+'/api/'+path);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
@@ -1598,25 +1603,8 @@ function renderAll(){
   document.getElementById('sync-time').textContent='Actualizado: '+new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   if(SELECTED_RECOMPRA_MONTH)renderRecompraDetail(SELECTED_RECOMPRA_MONTH);
 
-  setTimeout(()=>{
-    // ── Resumen charts ──
-    mkChart('chartNuevosClientes','line',mLabels,[{data:newClientsByMonth,borderColor:'#185FA5',backgroundColor:'rgba(24,95,165,0.08)',fill:true,tension:.3,pointRadius:4,pointBackgroundColor:'#185FA5'}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},beginAtZero:true}}},plugins:{legend:{display:false}}});
-    mkChart('chartRevenueMes','line',mLabels,[{data:mVals,borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.08)',fill:true,tension:.3,pointRadius:4,pointBackgroundColor:'#1D9E75'}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:tickY}}},plugins:{legend:{display:false}}});
-    // ── Ventas charts ──
-    mkChart('chartDaily','line',dLabels,[{data:dVals,borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.08)',fill:true,tension:.3,pointRadius:2}],{scales:{x:{grid:{display:false},ticks:{font:{size:10},maxTicksLimit:10}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:tickY}}}});
-    mkChart('chartTicketEvol','line',mLabels,[{data:mTickets,borderColor:'#185FA5',backgroundColor:'rgba(24,95,165,0.07)',fill:true,tension:.3,pointRadius:3,pointBackgroundColor:'#185FA5'}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:tickY}}},plugins:{tooltip:{callbacks:{label:ctx=>' '+fmt(ctx.parsed.y)}}}});
-    mkChart('chartDow','bar',dowLabels,[{data:dowAvg,backgroundColor:'#5DCAA5',borderRadius:4}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:10},callback:tickY}}}});
-    mkChart('chartProd','bar',sortedSkus.slice(0,6).map(([n])=>n.length>22?n.slice(0,22)+'…':n),[{data:sortedSkus.slice(0,6).map(([,d])=>Math.round(d.rev)),backgroundColor:'#1D9E75',borderRadius:4}],{indexAxis:'y',scales:{x:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:10},callback:tickY}},y:{grid:{display:false},ticks:{font:{size:11}}}}});
-    mkChart('chartTicket','bar',ticketByProd.slice(0,8).map(p=>p.name.length>22?p.name.slice(0,22)+'…':p.name),[{data:ticketByProd.slice(0,8).map(p=>Math.round(p.ticket)),backgroundColor:'#5DCAA5',borderRadius:4}],{indexAxis:'y',scales:{x:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:10},callback:tickY}},y:{grid:{display:false},ticks:{font:{size:11}}}}});
-    mkChart('chartCohort','doughnut',['Activos (30d)','Inactivos (31-90d)','Sin compras recientes'],[{data:[cohorts.active,cohorts.lapsed,cohorts.old],backgroundColor:['#1D9E75','#EF9F27','#B4B2A9'],borderWidth:0}],{plugins:{legend:{display:true,position:'bottom',labels:{font:{size:11},boxWidth:10,padding:12}}}});
-    mkChart('chartRecompra','line',recompraData.map(r=>r.label),[{data:recompraData.map(r=>r.pct),borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.08)',fill:true,tension:.3,pointRadius:4,pointBackgroundColor:'#1D9E75'}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:v=>v+'%'},max:100}},plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.raw+'%'}}}});
-    mkChart('chartNuevosVsRec','bar',recompraData.map(r=>r.label),[{label:'Nuevos',data:recompraData.map(r=>r.nuevos),backgroundColor:'#185FA5',borderRadius:3},{label:'Recurrentes',data:recompraData.map(r=>r.recurrentes),backgroundColor:'#1D9E75',borderRadius:3}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11}}}},plugins:{legend:{display:true,position:'bottom',labels:{font:{size:11},boxWidth:10,padding:12}}}});
-    mkChart('chartUtm','bar',sortedUtm.map(([k])=>k.length>22?k.slice(0,22)+'…':k),[{data:sortedUtm.map(([,d])=>Math.round(d.rev)),backgroundColor:'#1D9E75',borderRadius:4}],{indexAxis:'y',scales:{x:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:10},callback:tickY}},y:{grid:{display:false},ticks:{font:{size:11}}}}});
-    if(subCount>0){
-      mkChart('chartMRR','bar',subMLabels,[{data:subMRR,backgroundColor:'#1D9E75',borderRadius:4,borderSkipped:false}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:tickY}}}});
-      mkChart('chartSubNew','bar',subMLabels,[{data:subNew,backgroundColor:'#5DCAA5',borderRadius:4}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},beginAtZero:true}}}});
-    }
-    // Subscription daily cobros chart
+  // Render daily subscription chart separately after DOM is ready
+  window._subDailyReady=()=>{
     if(subDailyKeys&&subDailyKeys.length>0){
       mkChart('chartSubDaily','bar',subDailyLabels,[{
         data:subDailyMontos,
@@ -1648,6 +1636,27 @@ function renderAll(){
           }}
         }
       });
+    }
+  };
+  setTimeout(window._subDailyReady,300);
+
+  setTimeout(()=>{
+    // ── Resumen charts ──
+    mkChart('chartNuevosClientes','line',mLabels,[{data:newClientsByMonth,borderColor:'#185FA5',backgroundColor:'rgba(24,95,165,0.08)',fill:true,tension:.3,pointRadius:4,pointBackgroundColor:'#185FA5'}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},beginAtZero:true}}},plugins:{legend:{display:false}}});
+    mkChart('chartRevenueMes','line',mLabels,[{data:mVals,borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.08)',fill:true,tension:.3,pointRadius:4,pointBackgroundColor:'#1D9E75'}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:tickY}}},plugins:{legend:{display:false}}});
+    // ── Ventas charts ──
+    mkChart('chartDaily','line',dLabels,[{data:dVals,borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.08)',fill:true,tension:.3,pointRadius:2}],{scales:{x:{grid:{display:false},ticks:{font:{size:10},maxTicksLimit:10}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:tickY}}}});
+    mkChart('chartTicketEvol','line',mLabels,[{data:mTickets,borderColor:'#185FA5',backgroundColor:'rgba(24,95,165,0.07)',fill:true,tension:.3,pointRadius:3,pointBackgroundColor:'#185FA5'}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:tickY}}},plugins:{tooltip:{callbacks:{label:ctx=>' '+fmt(ctx.parsed.y)}}}});
+    mkChart('chartDow','bar',dowLabels,[{data:dowAvg,backgroundColor:'#5DCAA5',borderRadius:4}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:10},callback:tickY}}}});
+    mkChart('chartProd','bar',sortedSkus.slice(0,6).map(([n])=>n.length>22?n.slice(0,22)+'…':n),[{data:sortedSkus.slice(0,6).map(([,d])=>Math.round(d.rev)),backgroundColor:'#1D9E75',borderRadius:4}],{indexAxis:'y',scales:{x:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:10},callback:tickY}},y:{grid:{display:false},ticks:{font:{size:11}}}}});
+    mkChart('chartTicket','bar',ticketByProd.slice(0,8).map(p=>p.name.length>22?p.name.slice(0,22)+'…':p.name),[{data:ticketByProd.slice(0,8).map(p=>Math.round(p.ticket)),backgroundColor:'#5DCAA5',borderRadius:4}],{indexAxis:'y',scales:{x:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:10},callback:tickY}},y:{grid:{display:false},ticks:{font:{size:11}}}}});
+    mkChart('chartCohort','doughnut',['Activos (30d)','Inactivos (31-90d)','Sin compras recientes'],[{data:[cohorts.active,cohorts.lapsed,cohorts.old],backgroundColor:['#1D9E75','#EF9F27','#B4B2A9'],borderWidth:0}],{plugins:{legend:{display:true,position:'bottom',labels:{font:{size:11},boxWidth:10,padding:12}}}});
+    mkChart('chartRecompra','line',recompraData.map(r=>r.label),[{data:recompraData.map(r=>r.pct),borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.08)',fill:true,tension:.3,pointRadius:4,pointBackgroundColor:'#1D9E75'}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:v=>v+'%'},max:100}},plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.raw+'%'}}}});
+    mkChart('chartNuevosVsRec','bar',recompraData.map(r=>r.label),[{label:'Nuevos',data:recompraData.map(r=>r.nuevos),backgroundColor:'#185FA5',borderRadius:3},{label:'Recurrentes',data:recompraData.map(r=>r.recurrentes),backgroundColor:'#1D9E75',borderRadius:3}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11}}}},plugins:{legend:{display:true,position:'bottom',labels:{font:{size:11},boxWidth:10,padding:12}}}});
+    mkChart('chartUtm','bar',sortedUtm.map(([k])=>k.length>22?k.slice(0,22)+'…':k),[{data:sortedUtm.map(([,d])=>Math.round(d.rev)),backgroundColor:'#1D9E75',borderRadius:4}],{indexAxis:'y',scales:{x:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:10},callback:tickY}},y:{grid:{display:false},ticks:{font:{size:11}}}}});
+    if(subCount>0){
+      mkChart('chartMRR','bar',subMLabels,[{data:subMRR,backgroundColor:'#1D9E75',borderRadius:4,borderSkipped:false}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:tickY}}}});
+      mkChart('chartSubNew','bar',subMLabels,[{data:subNew,backgroundColor:'#5DCAA5',borderRadius:4}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},beginAtZero:true}}}});
     }
     // Channel evolution chart
     if(topChannels&&topChannels.length>0){
