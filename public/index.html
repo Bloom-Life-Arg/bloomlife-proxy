@@ -658,15 +658,61 @@ function renderAll(){
   subExpectedEOM=Math.round(subExpectedEOM);
 
   // ── Progreso del MRR mensual ──────────────────────────────
-  // Ya cobrado este mes (real, de subPaid) vs total esperado del mes completo
-  // Total esperado = ya cobrado + lo que falta hasta fin de mes
-  const subMonthTotal=subRevThisMonth+subExpectedEOM; // cobrado + por cobrar
+  const subMonthTotal=subRevThisMonth+subExpectedEOM;
   const subMonthProgress=subMonthTotal>0?Math.round(subRevThisMonth/subMonthTotal*100):0;
-  // Cuántos suscriptores activos ya cobraron este mes
   const subCobraronEsteMes=new Set(
     subPaid.filter(o=>new Date(o.created_at)>=m0).map(o=>o.customer?.email).filter(Boolean)
   ).size;
   const subPorCobrarEsteMes=Math.max(0,activeSubLast30.length-subCobraronEsteMes);
+
+  // ── Calendario de cobros diarios — resto del mes ──────────
+  // Para cada suscriptor activo, proyectamos todos los cobros
+  // que caen desde hoy hasta fin de mes, agrupados por día
+  const subDailyMap={}; // key: "YYYY-MM-DD" → {monto, count}
+  activeSubLast30.forEach(sub=>{
+    const hist=subHistorial[sub.email];
+    if(!hist||hist.length<1)return;
+    hist.sort((a,b)=>a.fecha-b.fecha);
+    const lastCobro=hist[hist.length-1];
+    const initOrder=subInitByEmail[sub.email];
+    let freqDays=initOrder?(window.SUB_FREQ_CACHE[initOrder.id]||null):null;
+    if(!freqDays&&hist.length>=2){
+      const intervals=[];
+      for(let i=1;i<hist.length;i++)intervals.push((hist[i].fecha-hist[i-1].fecha)/(1000*3600*24));
+      intervals.sort((a,b)=>a-b);
+      const mid=Math.floor(intervals.length/2);
+      const median=intervals.length%2!==0?intervals[mid]:(intervals[mid-1]+intervals[mid])/2;
+      const calc=Math.round(median);
+      if(calc>=7&&calc<=365)freqDays=calc;
+    }
+    if(!freqDays||freqDays<7)return;
+    // Proyectar próximo cobro
+    let nextCobro=new Date(lastCobro.fecha);
+    nextCobro.setDate(nextCobro.getDate()+freqDays);
+    // Avanzar hasta hoy
+    while(nextCobro<now){
+      nextCobro=new Date(nextCobro);
+      nextCobro.setDate(nextCobro.getDate()+freqDays);
+    }
+    // Registrar todos los cobros hasta fin de mes
+    while(nextCobro<=endOfMonth){
+      const dayKey=nextCobro.toISOString().slice(0,10);
+      if(!subDailyMap[dayKey])subDailyMap[dayKey]={monto:0,count:0};
+      subDailyMap[dayKey].monto+=lastCobro.monto;
+      subDailyMap[dayKey].count++;
+      nextCobro=new Date(nextCobro);
+      nextCobro.setDate(nextCobro.getDate()+freqDays);
+    }
+  });
+  // Ordenar por fecha y preparar para el gráfico
+  const subDailyKeys=Object.keys(subDailyMap).sort();
+  const subDailyLabels=subDailyKeys.map(k=>{
+    const[,m,d]=k.split('-');
+    return d+'/'+m;
+  });
+  const subDailyMontos=subDailyKeys.map(k=>Math.round(subDailyMap[k].monto));
+  const subDailyCounts=subDailyKeys.map(k=>subDailyMap[k].count);
+  const subDailyMax=Math.max(...subDailyMontos,1);
 
   // Run Rate anualizado — último mes CERRADO (no el mes en curso)
   const rrLastMonth=revL*12;
@@ -1063,6 +1109,17 @@ function renderAll(){
       </div>
 
     </div>
+
+    <!-- Calendario de cobros diarios -->
+    ${subDailyKeys.length===0?'':`
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="card-title" style="margin-bottom:0">Cobros esperados — resto del mes</div>
+        <span style="font-size:11px;color:#999">${subDailyKeys.length} día${subDailyKeys.length!==1?'s':''} con cobros · ${fmt(subExpectedEOM)} total</span>
+      </div>
+      <div class="chart-wrap" style="height:140px"><canvas id="chartSubDaily"></canvas></div>
+      <div style="font-size:11px;color:#999;margin-top:8px;text-align:center">Hover para ver detalle por día · frecuencia real de cada suscriptor</div>
+    </div>`}
 
     <!-- MRR y ticket promedio -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.25rem">
@@ -1558,6 +1615,39 @@ function renderAll(){
     if(subCount>0){
       mkChart('chartMRR','bar',subMLabels,[{data:subMRR,backgroundColor:'#1D9E75',borderRadius:4,borderSkipped:false}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},callback:tickY}}}});
       mkChart('chartSubNew','bar',subMLabels,[{data:subNew,backgroundColor:'#5DCAA5',borderRadius:4}],{scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:11},beginAtZero:true}}}});
+    }
+    // Subscription daily cobros chart
+    if(subDailyKeys&&subDailyKeys.length>0){
+      mkChart('chartSubDaily','bar',subDailyLabels,[{
+        data:subDailyMontos,
+        backgroundColor:subDailyMontos.map(v=>v>=subDailyMax*0.7?'#1D9E75':v>=subDailyMax*0.4?'#5DCAA5':'#B5E8D8'),
+        borderRadius:4,
+        borderSkipped:false,
+      }],{
+        scales:{
+          x:{grid:{display:false},ticks:{font:{size:10}}},
+          y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:10},callback:tickY},beginAtZero:true}
+        },
+        plugins:{
+          legend:{display:false},
+          tooltip:{callbacks:{
+            title:ctx=>{
+              const idx=ctx[0].dataIndex;
+              const key=subDailyKeys[idx];
+              const[y,m,d]=key.split('-');
+              const date=new Date(parseInt(y),parseInt(m)-1,parseInt(d));
+              return date.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'});
+            },
+            label:ctx=>{
+              const idx=ctx.dataIndex;
+              return[
+                ' '+fmt(subDailyMontos[idx]),
+                ' '+subDailyCounts[idx]+' cobro'+(subDailyCounts[idx]!==1?'s':''),
+              ];
+            }
+          }}
+        }
+      });
     }
     // Channel evolution chart
     if(topChannels&&topChannels.length>0){
