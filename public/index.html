@@ -432,7 +432,7 @@ function renderAll(){
   subInitial.forEach(o=>{const d=new Date(o.created_at),k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');if(subMonthlyMap[k])subMonthlyMap[k].new++;});
   const subMonthKeys=Object.keys(subMonthlyMap).sort(),subMLabels=subMonthKeys.map(k=>{const[y,m]=k.split('-');return mNames[parseInt(m)-1]+"'"+y.slice(2);}),subMRR=subMonthKeys.map(k=>Math.round(subMonthlyMap[k].rev)),subNew=subMonthKeys.map(k=>subMonthlyMap[k].new||0);
   const subCustMap={};subPaid.forEach(o=>{const e=o.customer?.email;if(!e)return;if(!subCustMap[e])subCustMap[e]={name:o.customer?.name||o.contact_name||e,email:e,orders:0,rev:0,last:o.created_at};subCustMap[e].orders++;subCustMap[e].rev+=parseFloat(o.total||0);if(o.created_at>subCustMap[e].last)subCustMap[e].last=o.created_at;});
-  const subCustList=Object.values(subCustMap),activeSubLast30=subCustList.filter(c=>(now-new Date(c.last))/(1000*3600*24)<=45),churnedSubs=subCustList.filter(c=>(now-new Date(c.last))/(1000*3600*24)>45);
+  const subCustList=Object.values(subCustMap),activeSubLast30=subCustList.filter(c=>(now-new Date(c.last))/(1000*3600*24)<=365),churnedSubs=subCustList.filter(c=>(now-new Date(c.last))/(1000*3600*24)>365);
   const churnRate=subCustList.length?(churnedSubs.length/subCustList.length*100).toFixed(1):0,avgSubTicket=subPaid.length?subRevTotal/subPaid.length:0;
   const subSkuMap={};subPaid.forEach(o=>{(o.products||[]).forEach(it=>{const n=getName(it.name);if(!subSkuMap[n])subSkuMap[n]={qty:0,rev:0};subSkuMap[n].qty+=it.quantity||1;subSkuMap[n].rev+=parseFloat(it.price||0)*(it.quantity||1);});});
   const sortedSubSkus=Object.entries(subSkuMap).sort((a,b)=>b[1].rev-a[1].rev).slice(0,6);
@@ -815,7 +815,7 @@ function renderAll(){
     // "Fin del mes" = primer día del mes siguiente
     const mEnd=new Date(parseInt(y),parseInt(mo),1);
     // Stock activo = cobró en los 45 días anteriores al fin del mes
-    const ventanaInicio=new Date(mEnd);ventanaInicio.setDate(ventanaInicio.getDate()-45);
+    const ventanaInicio=new Date(mEnd);ventanaInicio.setFullYear(ventanaInicio.getFullYear()-1);
     const stockActivo=new Set(
       subPaid.filter(o=>{const d=new Date(o.created_at);return d>=ventanaInicio&&d<mEnd;})
         .map(o=>o.customer?.email).filter(Boolean)
@@ -833,7 +833,7 @@ function renderAll(){
       const prevK=arr[idx-1];
       const[py,pmo]=prevK.split('-');
       const prevEnd=new Date(parseInt(py),parseInt(pmo),1);
-      const prevVentana=new Date(prevEnd);prevVentana.setDate(prevVentana.getDate()-45);
+      const prevVentana=new Date(prevEnd);prevVentana.setFullYear(prevVentana.getFullYear()-1);
       const stockPrevio=new Set(
         subPaid.filter(o=>{const d=new Date(o.created_at);return d>=prevVentana&&d<prevEnd;})
           .map(o=>o.customer?.email).filter(Boolean)
@@ -844,7 +844,7 @@ function renderAll(){
     const stockPrevSize=idx>0?(()=>{
       const prevK=arr[idx-1];const[py,pmo]=prevK.split('-');
       const prevEnd=new Date(parseInt(py),parseInt(pmo),1);
-      const prevVentana=new Date(prevEnd);prevVentana.setDate(prevVentana.getDate()-45);
+      const prevVentana=new Date(prevEnd);prevVentana.setFullYear(prevVentana.getFullYear()-1);
       return new Set(subPaid.filter(o=>{const d=new Date(o.created_at);return d>=prevVentana&&d<prevEnd;}).map(o=>o.customer?.email).filter(Boolean)).size;
     })():0;
     const neto=stockActivo.size-stockPrevSize;
@@ -1165,7 +1165,7 @@ function renderAll(){
       <div class="signal-card ${subActivosDelta>=0?'good':'bad'}">
         <div class="signal-label">Activos vs mes anterior</div>
         <div class="signal-value" style="font-size:22px;color:${subActivosDelta>=0?'#1D9E75':'#D85A30'}">${subActivosDelta>=0?'+':''}${fmtN(subActivosDelta)}</div>
-        <div class="signal-sub">${fmtN(subActivosMesActual)} activos este mes · ${fmtN(subActivosMesAnterior)} el anterior</div>
+        <div class="signal-sub">${fmtN(subActivosMesActual)} activos · ${fmtN(subActivosMesAnterior)} mes ant. · ventana 365d</div>
         <span class="signal-rule ${subActivosDelta>=0?'good':'bad'}">${subActivosDelta>=0?'▲ Creciendo':'▼ Cayendo'}</span>
       </div>
       <div class="signal-card ${subNetoMesActual>=0?'good':'bad'}">
