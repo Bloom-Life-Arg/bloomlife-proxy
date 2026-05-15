@@ -805,6 +805,53 @@ function renderAll(){
   const avgLTVSub=subCusts.length?subCusts.reduce((s,c)=>s+c.rev,0)/subCusts.length:0;
   const avgLTVNoSub=noSubCusts.length?noSubCusts.reduce((s,c)=>s+c.rev,0)/noSubCusts.length:0;
   const ltvMultiplier=avgLTVNoSub>0?(avgLTVSub/avgLTVNoSub).toFixed(1):0;
+  // ── EVOLUCIÓN MENSUAL DE SUSCRIPCIONES ──────────────────
+  // Para cada mes: activos, nuevos, desuscriptos, neto
+  // Activos = suscriptores que tuvieron cobro en ese mes
+  // Nuevos = is_subscription_initial en ese mes
+  // Desuscriptos = tuvieron cobro mes anterior pero NO en este mes
+  const subEvolucionMensual=allMonthKeys.slice(-8).map((k,idx,arr)=>{
+    const[y,mo]=k.split('-');
+    const mStart=new Date(parseInt(y),parseInt(mo)-1,1);
+    const mEnd=new Date(parseInt(y),parseInt(mo),1);
+    // Activos: cobraron en este mes
+    const activosEsteMes=new Set(
+      subPaid.filter(o=>{const d=new Date(o.created_at);return d>=mStart&&d<mEnd;})
+        .map(o=>o.customer?.email).filter(Boolean)
+    );
+    // Nuevos: primera orden de suscripción en este mes
+    const nuevosEsteMes=new Set(
+      ALL_ORDERS.filter(o=>o.is_subscription_initial&&o.payment_status==='paid'&&
+        (()=>{const d=new Date(o.created_at);return d>=mStart&&d<mEnd;})()
+      ).map(o=>o.customer?.email).filter(Boolean)
+    );
+    // Desuscriptos: cobraron el mes anterior pero NO este mes
+    let desuscriptosEsteMes=0;
+    if(idx>0){
+      const prevK=arr[idx-1];
+      const[py,pmo]=prevK.split('-');
+      const prevStart=new Date(parseInt(py),parseInt(pmo)-1,1);
+      const prevEnd=new Date(parseInt(py),parseInt(pmo),1);
+      const activosMesAnterior=new Set(
+        subPaid.filter(o=>{const d=new Date(o.created_at);return d>=prevStart&&d<prevEnd;})
+          .map(o=>o.customer?.email).filter(Boolean)
+      );
+      // Desuscripto = estaba activo mes anterior pero no cobró este mes
+      desuscriptosEsteMes=[...activosMesAnterior].filter(e=>!activosEsteMes.has(e)).length;
+    }
+    const neto=nuevosEsteMes.size-desuscriptosEsteMes;
+    const label2=mNames[parseInt(mo)-1]+"'"+y.slice(2);
+    return{k,label:label2,activos:activosEsteMes.size,nuevos:nuevosEsteMes.size,desuscriptos:desuscriptosEsteMes,neto};
+  });
+
+  // Neto mes actual vs mes anterior
+  const subNetoMesActual=subEvolucionMensual[subEvolucionMensual.length-1]?.neto||0;
+  const subNetoMesAnterior=subEvolucionMensual[subEvolucionMensual.length-2]?.neto||0;
+  const subNetoDelta=subNetoMesActual-subNetoMesAnterior;
+  const subActivosMesActual=subEvolucionMensual[subEvolucionMensual.length-1]?.activos||0;
+  const subActivosMesAnterior=subEvolucionMensual[subEvolucionMensual.length-2]?.activos||0;
+  const subActivosDelta=subActivosMesActual-subActivosMesAnterior;
+
   // delta nuevos suscriptores vs mes anterior
   const subNewThisMonth=(subMonthlyMap[Object.keys(subMonthlyMap).sort().slice(-1)[0]]?.new||0);
   const subNewLastMonth=(subMonthlyMap[Object.keys(subMonthlyMap).sort().slice(-2,-1)[0]]?.new||0);
@@ -1087,6 +1134,40 @@ function renderAll(){
         <span>${fmtN(activeSubLast30.length)} activos totales</span>
       </div>
       <div style="font-size:11px;color:#999;margin-top:6px;background:#f9f9f7;border-radius:6px;padding:6px 10px">⚠ Este % es el avance del MRR de suscripciones, no el % del revenue total del mes (${subRevPctThisMonth}%).</div>
+    </div>
+
+    <!-- Evolución mensual de suscripciones -->
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="card-title" style="margin-bottom:0">Evolución de suscripciones — últimos 8 meses</div>
+        <div style="display:flex;gap:16px;font-size:11px">
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#1D9E75;border-radius:2px;display:inline-block"></span>Activos</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#185FA5;border-radius:50%;display:inline-block"></span>Neto</span>
+        </div>
+      </div>
+      <div class="chart-wrap" style="height:160px"><canvas id="chartSubEvol"></canvas></div>
+    </div>
+
+    <!-- Neto suscripciones mes actual -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.25rem">
+      <div class="signal-card ${subActivosDelta>=0?'good':'bad'}">
+        <div class="signal-label">Activos vs mes anterior</div>
+        <div class="signal-value" style="font-size:22px;color:${subActivosDelta>=0?'#1D9E75':'#D85A30'}">${subActivosDelta>=0?'+':''}${fmtN(subActivosDelta)}</div>
+        <div class="signal-sub">${fmtN(subActivosMesActual)} activos este mes · ${fmtN(subActivosMesAnterior)} el anterior</div>
+        <span class="signal-rule ${subActivosDelta>=0?'good':'bad'}">${subActivosDelta>=0?'▲ Creciendo':'▼ Cayendo'}</span>
+      </div>
+      <div class="signal-card ${subNetoMesActual>=0?'good':'bad'}">
+        <div class="signal-label">Neto suscripciones — este mes</div>
+        <div class="signal-value" style="font-size:22px;color:${subNetoMesActual>=0?'#1D9E75':'#D85A30'}">${subNetoMesActual>=0?'+':''}${fmtN(subNetoMesActual)}</div>
+        <div class="signal-sub">+${fmtN(subEvolucionMensual[subEvolucionMensual.length-1]?.nuevos||0)} nuevos · −${fmtN(subEvolucionMensual[subEvolucionMensual.length-1]?.desuscriptos||0)} bajas</div>
+        <span class="signal-rule ${subNetoMesActual>=0?'good':'bad'}">${subNetoMesActual>=0?'Base creciendo':'Base cayendo'}</span>
+      </div>
+      <div class="signal-card ${subNetoDelta>=0?'good':'warn'}">
+        <div class="signal-label">Neto vs mes anterior</div>
+        <div class="signal-value" style="font-size:22px;color:${subNetoDelta>=0?'#1D9E75':'#D85A30'}">${subNetoDelta>=0?'+':''}${fmtN(subNetoDelta)}</div>
+        <div class="signal-sub">mes ant.: ${subNetoMesAnterior>=0?'+':''}${fmtN(subNetoMesAnterior)} neto</div>
+        <span class="signal-rule ${subNetoDelta>=0?'good':'warn'}">${subNetoDelta>=0?'Mejorando':'Empeorando'}</span>
+      </div>
     </div>
 
     <!-- Cards de cobros por ventana temporal -->
@@ -1605,6 +1686,68 @@ function renderAll(){
 
   // Render daily subscription chart separately after DOM is ready
   window._subDailyReady=()=>{
+    // Subscription evolution chart (activos por mes + neto)
+    if(subEvolucionMensual&&subEvolucionMensual.length>0){
+      const evolLabels=subEvolucionMensual.map(m=>m.label);
+      const evolActivos=subEvolucionMensual.map(m=>m.activos);
+      const evolNeto=subEvolucionMensual.map(m=>m.neto);
+      mkChart('chartSubEvol','bar',evolLabels,[
+        {
+          label:'Activos',
+          data:evolActivos,
+          backgroundColor:'rgba(29,158,117,0.15)',
+          borderColor:'#1D9E75',
+          borderWidth:2,
+          borderRadius:4,
+          type:'bar',
+          yAxisID:'y',
+        },
+        {
+          label:'Neto (nuevos − bajas)',
+          data:evolNeto,
+          type:'line',
+          borderColor:'#185FA5',
+          backgroundColor:'rgba(24,95,165,0.1)',
+          borderWidth:2,
+          pointRadius:4,
+          pointBackgroundColor:evolNeto.map(v=>v>=0?'#185FA5':'#D85A30'),
+          pointBorderColor:evolNeto.map(v=>v>=0?'#185FA5':'#D85A30'),
+          fill:false,
+          tension:.3,
+          yAxisID:'y2',
+        },
+      ],{
+        scales:{
+          x:{grid:{display:false},ticks:{font:{size:10}}},
+          y:{
+            position:'left',
+            grid:{color:'rgba(0,0,0,0.05)'},
+            ticks:{font:{size:10},callback:v=>fmtN(v)},
+            title:{display:true,text:'Activos',font:{size:10},color:'#1D9E75'},
+          },
+          y2:{
+            position:'right',
+            grid:{display:false},
+            ticks:{font:{size:10},callback:v=>(v>=0?'+':'')+v},
+            title:{display:true,text:'Neto',font:{size:10},color:'#185FA5'},
+          },
+        },
+        plugins:{
+          legend:{display:false},
+          tooltip:{callbacks:{
+            label:ctx=>{
+              if(ctx.datasetIndex===0)return' Activos: '+fmtN(ctx.raw);
+              const row=subEvolucionMensual[ctx.dataIndex];
+              return[
+                ' Neto: '+(ctx.raw>=0?'+':'')+fmtN(ctx.raw),
+                ' Nuevos: +'+fmtN(row.nuevos),
+                ' Bajas: −'+fmtN(row.desuscriptos),
+              ];
+            }
+          }}
+        }
+      });
+    }
     if(subDailyKeys&&subDailyKeys.length>0){
       mkChart('chartSubDaily','bar',subDailyLabels,[{
         data:subDailyMontos,
