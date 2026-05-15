@@ -806,51 +806,63 @@ function renderAll(){
   const avgLTVNoSub=noSubCusts.length?noSubCusts.reduce((s,c)=>s+c.rev,0)/noSubCusts.length:0;
   const ltvMultiplier=avgLTVNoSub>0?(avgLTVSub/avgLTVNoSub).toFixed(1):0;
   // ── EVOLUCIÓN MENSUAL DE SUSCRIPCIONES ──────────────────
-  // Para cada mes: activos, nuevos, desuscriptos, neto
-  // Activos = suscriptores que tuvieron cobro en ese mes
-  // Nuevos = is_subscription_initial en ese mes
-  // Desuscriptos = tuvieron cobro mes anterior pero NO en este mes
+  // Stock de suscriptores activos en cada punto del tiempo
+  // Activo en mes X = tuvo al menos un cobro en los 45 días previos al fin del mes X
+  // Nuevos en mes X = is_subscription_initial en ese mes
+  // Bajas en mes X = estaba activo al fin del mes anterior pero NO al fin de este mes
   const subEvolucionMensual=allMonthKeys.slice(-8).map((k,idx,arr)=>{
     const[y,mo]=k.split('-');
-    const mStart=new Date(parseInt(y),parseInt(mo)-1,1);
+    // "Fin del mes" = primer día del mes siguiente
     const mEnd=new Date(parseInt(y),parseInt(mo),1);
-    // Activos: cobraron en este mes
-    const activosEsteMes=new Set(
-      subPaid.filter(o=>{const d=new Date(o.created_at);return d>=mStart&&d<mEnd;})
+    // Stock activo = cobró en los 45 días anteriores al fin del mes
+    const ventanaInicio=new Date(mEnd);ventanaInicio.setDate(ventanaInicio.getDate()-45);
+    const stockActivo=new Set(
+      subPaid.filter(o=>{const d=new Date(o.created_at);return d>=ventanaInicio&&d<mEnd;})
         .map(o=>o.customer?.email).filter(Boolean)
     );
-    // Nuevos: primera orden de suscripción en este mes
+    // Nuevos = primera orden de suscripción en este mes
+    const mStart=new Date(parseInt(y),parseInt(mo)-1,1);
     const nuevosEsteMes=new Set(
       ALL_ORDERS.filter(o=>o.is_subscription_initial&&o.payment_status==='paid'&&
         (()=>{const d=new Date(o.created_at);return d>=mStart&&d<mEnd;})()
       ).map(o=>o.customer?.email).filter(Boolean)
     );
-    // Desuscriptos: cobraron el mes anterior pero NO este mes
-    let desuscriptosEsteMes=0;
+    // Bajas = estaba en stock el mes anterior pero NO está en stock este mes
+    let bajas=0;
     if(idx>0){
       const prevK=arr[idx-1];
       const[py,pmo]=prevK.split('-');
-      const prevStart=new Date(parseInt(py),parseInt(pmo)-1,1);
       const prevEnd=new Date(parseInt(py),parseInt(pmo),1);
-      const activosMesAnterior=new Set(
-        subPaid.filter(o=>{const d=new Date(o.created_at);return d>=prevStart&&d<prevEnd;})
+      const prevVentana=new Date(prevEnd);prevVentana.setDate(prevVentana.getDate()-45);
+      const stockPrevio=new Set(
+        subPaid.filter(o=>{const d=new Date(o.created_at);return d>=prevVentana&&d<prevEnd;})
           .map(o=>o.customer?.email).filter(Boolean)
       );
-      // Desuscripto = estaba activo mes anterior pero no cobró este mes
-      desuscriptosEsteMes=[...activosMesAnterior].filter(e=>!activosEsteMes.has(e)).length;
+      bajas=[...stockPrevio].filter(e=>!stockActivo.has(e)).length;
     }
-    const neto=nuevosEsteMes.size-desuscriptosEsteMes;
+    // Neto = cambio en el stock total respecto al mes anterior
+    const stockPrevSize=idx>0?(()=>{
+      const prevK=arr[idx-1];const[py,pmo]=prevK.split('-');
+      const prevEnd=new Date(parseInt(py),parseInt(pmo),1);
+      const prevVentana=new Date(prevEnd);prevVentana.setDate(prevVentana.getDate()-45);
+      return new Set(subPaid.filter(o=>{const d=new Date(o.created_at);return d>=prevVentana&&d<prevEnd;}).map(o=>o.customer?.email).filter(Boolean)).size;
+    })():0;
+    const neto=stockActivo.size-stockPrevSize;
     const label2=mNames[parseInt(mo)-1]+"'"+y.slice(2);
-    return{k,label:label2,activos:activosEsteMes.size,nuevos:nuevosEsteMes.size,desuscriptos:desuscriptosEsteMes,neto};
+    return{k,label:label2,activos:stockActivo.size,nuevos:nuevosEsteMes.size,bajas,neto};
   });
 
-  // Neto mes actual vs mes anterior
-  const subNetoMesActual=subEvolucionMensual[subEvolucionMensual.length-1]?.neto||0;
-  const subNetoMesAnterior=subEvolucionMensual[subEvolucionMensual.length-2]?.neto||0;
-  const subNetoDelta=subNetoMesActual-subNetoMesAnterior;
+  // Stock actual vs mes anterior
   const subActivosMesActual=subEvolucionMensual[subEvolucionMensual.length-1]?.activos||0;
   const subActivosMesAnterior=subEvolucionMensual[subEvolucionMensual.length-2]?.activos||0;
   const subActivosDelta=subActivosMesActual-subActivosMesAnterior;
+  // Neto del mes actual (variación del stock)
+  const subNetoMesActual=subEvolucionMensual[subEvolucionMensual.length-1]?.neto||0;
+  const subNetoMesAnterior=subEvolucionMensual[subEvolucionMensual.length-2]?.neto||0;
+  const subNetoDelta=subNetoMesActual-subNetoMesAnterior;
+  // Nuevos y bajas del mes actual
+  const subNuevosMesActual=subEvolucionMensual[subEvolucionMensual.length-1]?.nuevos||0;
+  const subBajasMesActual=subEvolucionMensual[subEvolucionMensual.length-1]?.bajas||0;
 
   // delta nuevos suscriptores vs mes anterior
   const subNewThisMonth=(subMonthlyMap[Object.keys(subMonthlyMap).sort().slice(-1)[0]]?.new||0);
@@ -1159,7 +1171,7 @@ function renderAll(){
       <div class="signal-card ${subNetoMesActual>=0?'good':'bad'}">
         <div class="signal-label">Neto suscripciones — este mes</div>
         <div class="signal-value" style="font-size:22px;color:${subNetoMesActual>=0?'#1D9E75':'#D85A30'}">${subNetoMesActual>=0?'+':''}${fmtN(subNetoMesActual)}</div>
-        <div class="signal-sub">+${fmtN(subEvolucionMensual[subEvolucionMensual.length-1]?.nuevos||0)} nuevos · −${fmtN(subEvolucionMensual[subEvolucionMensual.length-1]?.desuscriptos||0)} bajas</div>
+        <div class="signal-sub">+${fmtN(subNuevosMesActual)} altas · −${fmtN(subBajasMesActual)} bajas</div>
         <span class="signal-rule ${subNetoMesActual>=0?'good':'bad'}">${subNetoMesActual>=0?'Base creciendo':'Base cayendo'}</span>
       </div>
       <div class="signal-card ${subNetoDelta>=0?'good':'warn'}">
@@ -1741,7 +1753,7 @@ function renderAll(){
               return[
                 ' Neto: '+(ctx.raw>=0?'+':'')+fmtN(ctx.raw),
                 ' Nuevos: +'+fmtN(row.nuevos),
-                ' Bajas: −'+fmtN(row.desuscriptos),
+                ' Bajas: −'+fmtN(row.bajas),
               ];
             }
           }}
