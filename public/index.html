@@ -436,24 +436,23 @@ function renderAll(){
   const avgSubTicket=subPaid.length?subRevTotal/subPaid.length:0;
 
   // ── DEFINICIÓN DE SUSCRIPTOR ACTIVO ──────────────────────
-  // Helper: obtener frecuencia de un suscriptor desde cache API o historial
-  const getSubFreq=(email)=>{
-    const initOrder=(window._subInitByEmail||{})[email];
-    let freq=initOrder?(window.SUB_FREQ_CACHE[initOrder.id]||null):null;
-    if(!freq){
-      // Calcular desde historial (mediana de intervalos)
-      const hist=(subHistorial2[email]||[]);
-      if(hist.length>=2){
-        const intervals=[];
-        for(let i=1;i<hist.length;i++)
-          intervals.push((hist[i]-hist[i-1])/(1000*3600*24));
-        intervals.sort((a,b)=>a-b);
-        const mid=Math.floor(intervals.length/2);
-        const med=intervals.length%2!==0?intervals[mid]:(intervals[mid-1]+intervals[mid])/2;
-        if(med>=7&&med<=365)freq=Math.round(med);
-      }
+  // Helper: frecuencia desde cache API o historial de cobros
+  const getSubFreqFromHistory=(email)=>{
+    // 1) API cache
+    const apiFreq=getSubFreqDays(email);
+    if(apiFreq)return apiFreq;
+    // 2) Mediana de intervalos reales
+    const hist=(subHistorial2[email]||[]);
+    if(hist.length>=2){
+      const intervals=[];
+      for(let i=1;i<hist.length;i++)
+        intervals.push((hist[i]-hist[i-1])/(1000*3600*24));
+      intervals.sort((a,b)=>a-b);
+      const mid=Math.floor(intervals.length/2);
+      const med=intervals.length%2!==0?intervals[mid]:(intervals[mid-1]+intervals[mid])/2;
+      if(med>=7&&med<=365)return Math.round(med);
     }
-    return freq||30; // default mensual
+    return 30; // default mensual
   };
 
   // Historial de fechas de cobro por suscriptor (solo fechas para getSubFreq)
@@ -465,10 +464,27 @@ function renderAll(){
   });
   Object.values(subHistorial2).forEach(h=>h.sort((a,b)=>a-b));
 
-  // Suscriptor activo = último cobro hace menos de freqDays × 1.5
+  // Suscriptor activo:
+  // 1) Si tenemos status de la API → usarlo directamente ("active" = activo)
+  // 2) Si no hay status → fallback: último cobro hace menos de freqDays × 1.5
   const isSubActive=(custObj,refDate=now)=>{
+    if(refDate===now){
+      const apiStatus=getSubStatus(custObj.email);
+      if(apiStatus!==null)return apiStatus==='active';
+    }
     const daysSince=(refDate-new Date(custObj.last))/(1000*3600*24);
-    const freq=getSubFreq(custObj.email);
+    const freq=getSubFreqFromHistory(custObj.email);
+    return daysSince<=freq*1.5;
+  };
+
+  // Para histórico mensual: activo al fin del mes si cobró dentro de freq×1.5 desde fin del mes
+  const isSubActiveAt=(custObj,refDate)=>{
+    const lastCobroBeforeRef=subPaid
+      .filter(o=>o.customer?.email===custObj.email&&new Date(o.created_at)<refDate)
+      .reduce((latest,o)=>o.created_at>latest?o.created_at:latest,'');
+    if(!lastCobroBeforeRef)return false;
+    const daysSince=(refDate-new Date(lastCobroBeforeRef))/(1000*3600*24);
+    const freq=getSubFreqFromHistory(custObj.email);
     return daysSince<=freq*1.5;
   };
 
@@ -711,6 +727,54 @@ function renderAll(){
   ).size;
   const subPorCobrarEsteMes=Math.max(0,activeSubLast30.length-subCobraronEsteMes);
 
+  // ── Cobros pendientes con detalle (para tabla en Suscripciones) ────────────
+  // Para cada suscriptor activo: calcular TODOS los cobros hasta fin de mes
+  // con fecha exacta, producto y monto
+  const cobrosPendientesDetalle=[];
+  activeSubLast30.forEach(sub=>{
+    const hist=subHistorial[sub.email];
+    if(!hist||hist.length<1)return;
+    hist.sort((a,b)=>a.fecha-b.fecha);
+    const lastCobro=hist[hist.length-1];
+    const initOrder=subInitByEmail[sub.email];
+    let freqDays=getSubFreqFromHistory(sub.email)||30;
+
+    // Proyectar próximo cobro
+    let nextCobro=new Date(lastCobro.fecha);
+    nextCobro.setDate(nextCobro.getDate()+freqDays);
+    while(nextCobro<now){
+      nextCobro=new Date(nextCobro);
+      nextCobro.setDate(nextCobro.getDate()+freqDays);
+    }
+    // Producto desde la última orden de suscripción
+    const lastSubOrder=subPaid.filter(o=>o.customer?.email===sub.email)
+      .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))[0];
+    const productos=(lastSubOrder?.products||[])
+      .map(p=>getName(p.name))
+      .filter(n=>!n.toLowerCase().includes('envío'))
+      .join(', ')||'—';
+
+    while(nextCobro<=endOfMonth){
+      const dayKey=nextCobro.toISOString().slice(0,10);
+      const[y2,m2,d2]=dayKey.split('-');
+      const diasSemana=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+      const diaSemana=diasSemana[nextCobro.getDay()];
+      cobrosPendientesDetalle.push({
+        fecha:dayKey,
+        fechaLabel:d2+'/'+m2+'/'+y2,
+        diaSemana,
+        nombre:sub.name,
+        email:sub.email,
+        producto:productos,
+        monto:lastCobro.monto,
+        freqDays,
+      });
+      nextCobro=new Date(nextCobro);
+      nextCobro.setDate(nextCobro.getDate()+freqDays);
+    }
+  });
+  cobrosPendientesDetalle.sort((a,b)=>a.fecha.localeCompare(b.fecha));
+
   // ── Calendario de cobros diarios — resto del mes ──────────
   // Para cada suscriptor activo, proyectamos todos los cobros
   // que caen desde hoy hasta fin de mes, agrupados por día
@@ -857,18 +921,8 @@ function renderAll(){
     const mStart=new Date(parseInt(y),parseInt(mo)-1,1);
 
     // Para cada suscriptor, su estado al fin de este mes
-    // = último cobro ANTES de mEnd fue hace ≤ freq×1.5 días desde mEnd
     const stockActivo=new Set(
-      subCustList.filter(sub=>{
-        // último cobro antes del fin del mes
-        const lastCobroBeforeEnd=subPaid
-          .filter(o=>o.customer?.email===sub.email&&new Date(o.created_at)<mEnd)
-          .reduce((latest,o)=>o.created_at>latest?o.created_at:latest,'');
-        if(!lastCobroBeforeEnd)return false;
-        const daysSince=(mEnd-new Date(lastCobroBeforeEnd))/(1000*3600*24);
-        const freq=getSubFreq(sub.email);
-        return daysSince<=freq*1.5;
-      }).map(s=>s.email)
+      subCustList.filter(sub=>isSubActiveAt(sub,mEnd)).map(s=>s.email)
     );
 
     // Nuevos = primera orden de suscripción en este mes
@@ -886,15 +940,7 @@ function renderAll(){
       const[py,pmo]=prevK.split('-');
       const prevEnd=new Date(parseInt(py),parseInt(pmo),1);
       const stockPrevio=new Set(
-        subCustList.filter(sub=>{
-          const lastCobroBeforePrev=subPaid
-            .filter(o=>o.customer?.email===sub.email&&new Date(o.created_at)<prevEnd)
-            .reduce((latest,o)=>o.created_at>latest?o.created_at:latest,'');
-          if(!lastCobroBeforePrev)return false;
-          const daysSince=(prevEnd-new Date(lastCobroBeforePrev))/(1000*3600*24);
-          const freq=getSubFreq(sub.email);
-          return daysSince<=freq*1.5;
-        }).map(s=>s.email)
+        subCustList.filter(sub=>isSubActiveAt(sub,prevEnd)).map(s=>s.email)
       );
       stockPrevSize=stockPrevio.size;
       bajas=[...stockPrevio].filter(e=>!stockActivo.has(e)).length;
@@ -1212,26 +1258,33 @@ function renderAll(){
       <div class="chart-wrap" style="height:160px"><canvas id="chartSubEvol"></canvas></div>
     </div>
 
-    <!-- Neto suscripciones mes actual -->
+    <!-- Stock y neto de suscripciones -->
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.25rem">
+
+      <!-- Stock total activos HOY (fuente de verdad = API status) -->
       <div class="signal-card ${subActivosDelta>=0?'good':'bad'}">
-        <div class="signal-label">Activos vs mes anterior</div>
-        <div class="signal-value" style="font-size:22px;color:${subActivosDelta>=0?'#1D9E75':'#D85A30'}">${subActivosDelta>=0?'+':''}${fmtN(subActivosDelta)}</div>
-        <div class="signal-sub">${fmtN(subActivosMesActual)} activos hoy · ${fmtN(subActivosMesAnterior)} el mes pasado</div>
-        <span class="signal-rule ${subActivosDelta>=0?'good':'bad'}">${subActivosDelta>=0?'▲ Creciendo':'▼ Cayendo'}</span>
+        <div class="signal-label">Suscriptores activos</div>
+        <div class="signal-value" style="font-size:26px">${fmtN(activeSubLast30.length)}</div>
+        <div class="signal-sub">${subActivosDelta>=0?'<span class="up">▲ '+Math.abs(subActivosDelta)+'</span>':'<span class="down">▼ '+Math.abs(subActivosDelta)+'</span>'} vs mes ant. (${fmtN(subActivosMesAnterior)})</div>
+        <span class="signal-rule neutral">status real desde TiendaNube</span>
       </div>
-      <div class="signal-card ${subNetoMesActual>=0?'good':'bad'}">
-        <div class="signal-label">Neto suscripciones — este mes</div>
-        <div class="signal-value" style="font-size:22px;color:${subNetoMesActual>=0?'#1D9E75':'#D85A30'}">${subNetoMesActual>=0?'+':''}${fmtN(subNetoMesActual)}</div>
-        <div class="signal-sub">+${fmtN(subNuevosMesActual)} altas · −${fmtN(subBajasMesActual)} bajas</div>
-        <span class="signal-rule ${subNetoMesActual>=0?'good':'bad'}">${subNetoMesActual>=0?'Base creciendo':'Base cayendo'}</span>
+
+      <!-- Altas del mes actual -->
+      <div class="signal-card ${subNuevosMesActual>0?'good':'neutral'}">
+        <div class="signal-label">Altas este mes</div>
+        <div class="signal-value" style="font-size:26px;color:#1D9E75">+${fmtN(subNuevosMesActual)}</div>
+        <div class="signal-sub">nuevas suscripciones en ${mNames[now.getMonth()]}</div>
+        <span class="signal-rule neutral">is_subscription_initial</span>
       </div>
-      <div class="signal-card ${subNetoDelta>=0?'good':'warn'}">
-        <div class="signal-label">Neto vs mes anterior</div>
-        <div class="signal-value" style="font-size:22px;color:${subNetoDelta>=0?'#1D9E75':'#D85A30'}">${subNetoDelta>=0?'+':''}${fmtN(subNetoDelta)}</div>
-        <div class="signal-sub">mes ant.: ${subNetoMesAnterior>=0?'+':''}${fmtN(subNetoMesAnterior)} neto</div>
-        <span class="signal-rule ${subNetoDelta>=0?'good':'warn'}">${subNetoDelta>=0?'Mejorando':'Empeorando'}</span>
+
+      <!-- Bajas del mes anterior cerrado (no del mes en curso — incompleto) -->
+      <div class="signal-card ${subEvolucionMensual[subEvolucionMensual.length-2]?.bajas>0?'warn':'good'}">
+        <div class="signal-label">Bajas mes anterior</div>
+        <div class="signal-value" style="font-size:26px;color:${(subEvolucionMensual[subEvolucionMensual.length-2]?.bajas||0)>0?'#D85A30':'#1D9E75'}">−${fmtN(subEvolucionMensual[subEvolucionMensual.length-2]?.bajas||0)}</div>
+        <div class="signal-sub">cancelaciones en ${mNames3[2]} (cerrado)</div>
+        <span class="signal-rule neutral">mes cerrado · dato exacto</span>
       </div>
+
     </div>
 
     <!-- Cards de cobros por ventana temporal -->
@@ -1537,6 +1590,63 @@ function renderAll(){
     </div>
     <div class="sec-label">MRR mensual</div>
     <div class="card"><div class="chart-wrap" style="height:180px"><canvas id="chartMRR"></canvas></div></div>
+
+    <!-- Cobros pendientes hasta fin de mes — tabla detallada -->
+    <div class="sec-label">Cobros pendientes hasta fin de mes <span style="font-size:11px;font-weight:400;color:#999">— control de inventario</span></div>
+    ${cobrosPendientesDetalle.length===0?
+      '<div class="card"><div class="empty">Sin cobros pendientes identificados para el resto del mes</div></div>':`
+    <div class="card" style="overflow-x:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="card-title" style="margin-bottom:0">${cobrosPendientesDetalle.length} cobro${cobrosPendientesDetalle.length!==1?'s':''} identificado${cobrosPendientesDetalle.length!==1?'s':''} · ${fmt(cobrosPendientesDetalle.reduce((s,c)=>s+c.monto,0))} total</div>
+        <span style="font-size:11px;color:#999">frecuencia real · sin estimaciones</span>
+      </div>
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Día</th>
+            <th>Suscriptor</th>
+            <th>Producto</th>
+            <th style="text-align:right">Monto</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${(()=>{
+            let html='';
+            let lastFecha='';
+            cobrosPendientesDetalle.forEach(cb=>{
+              const isNewDay=cb.fecha!==lastFecha;
+              if(isNewDay){
+                lastFecha=cb.fecha;
+                html+=\`<tr style="background:#f0fdf8">
+                  <td colspan="5" style="font-weight:700;color:#1D9E75;font-size:11px;padding:6px 0 4px">
+                    📅 \${cb.fechaLabel} — \${cb.diaSemana}
+                  </td>
+                </tr>\`;
+              }
+              html+=\`<tr>
+                <td style="color:#999;font-size:11px">\${cb.fechaLabel}</td>
+                <td style="color:#999;font-size:11px">\${cb.diaSemana}</td>
+                <td>
+                  <div style="font-weight:600;font-size:12px">\${cb.nombre}</div>
+                  <div style="font-size:10px;color:#999;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">\${cb.email}</div>
+                </td>
+                <td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">\${cb.producto}</td>
+                <td style="font-weight:600;text-align:right">\${fmt(cb.monto)}</td>
+              </tr>\`;
+            });
+            return html;
+          })()}
+        </tbody>
+        <tfoot>
+          <tr style="background:#f0fdf8;font-weight:700">
+            <td colspan="4" style="padding-top:8px">Total pendiente este mes</td>
+            <td style="text-align:right;padding-top:8px">${fmt(cobrosPendientesDetalle.reduce((s,c)=>s+c.monto,0))}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>`}
+
     <div class="grid2">
       <div class="card"><div class="card-title">Nuevos suscriptores por mes</div><div class="chart-wrap" style="height:160px"><canvas id="chartSubNew"></canvas></div></div>
       <div class="card"><div class="card-title">Top productos suscripción</div>${sortedSubSkus.length===0?'<div class="empty">Sin datos</div>':sortedSubSkus.map(([n,d])=>`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="max-width:65%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n}</span><span style="color:#999">${fmt(d.rev)}</span></div><div class="progress-wrap"><div class="progress-bar" style="width:${Math.round(d.rev/Math.max(...sortedSubSkus.map(([,x])=>x.rev),1)*100)}%"></div></div></div>`).join('')}</div>
@@ -1895,31 +2005,53 @@ function renderAll(){
 // Cache de frecuencias de suscripción por order_id
 window.SUB_FREQ_CACHE = {};
 
-// Fetch frecuencia real desde /orders/{id}/subscriptions
+// Fetch datos reales desde /orders/{id}/subscriptions
+// Guarda en cache: { freqDays, status, products }
 async function fetchSubFrequency(orderId){
   if(window.SUB_FREQ_CACHE[orderId]!==undefined)return window.SUB_FREQ_CACHE[orderId];
   try{
     const data=await apiFetch('orders/'+orderId+'/subscriptions');
-    // data puede ser array o un objeto; buscamos interval_days o frequency
-    let days=null;
-    const sub=Array.isArray(data)?data[0]:data;
+    const items=Array.isArray(data)?data:(data?.items?data.items:[data]);
+    const sub=items.find(s=>s?.status==='active')||items[0];
+    let result={freqDays:null,status:null,products:[]};
     if(sub){
-      // TiendaNube puede traer: interval_days, frequency, recurrence_interval, period
-      days=sub.interval_days||sub.frequency||sub.recurrence_interval||null;
-      // Si viene como string "monthly"/"weekly" convertir
-      if(days==='monthly'||days===30)days=30;
-      if(days==='weekly'||days===7)days=7;
-      if(days==='biweekly'||days===14)days=14;
-      if(days==='quarterly'||days===90)days=90;
-      if(typeof days==='number'&&days>0){}
-      else days=null;
+      result.status=sub.status||null;
+      result.products=sub.products||[];
+      // Calcular freqDays desde frequency_type + frequency_param (API nueva)
+      const ft=sub.subscription_option?.frequency_type||sub.frequency_type||null;
+      const fp=parseInt(sub.subscription_option?.frequency_param||sub.frequency_param||0);
+      if(ft==='months'&&fp>0)result.freqDays=fp*30;
+      else if(ft==='weeks'&&fp>0)result.freqDays=fp*7;
+      else if(ft==='days'&&fp>0)result.freqDays=fp;
+      // Fallback campos legacy
+      if(!result.freqDays){
+        let d=sub.interval_days||sub.frequency||sub.recurrence_interval||null;
+        if(d==='monthly')d=30;else if(d==='weekly')d=7;
+        else if(d==='biweekly')d=14;else if(d==='quarterly')d=90;
+        if(typeof d==='number'&&d>0)result.freqDays=d;
+      }
     }
-    window.SUB_FREQ_CACHE[orderId]=days;
-    return days;
+    window.SUB_FREQ_CACHE[orderId]=result;
+    return result;
   }catch(e){
     window.SUB_FREQ_CACHE[orderId]=null;
     return null;
   }
+}
+// Helpers para leer cache
+function getSubFreqDays(email){
+  const o=(window._subInitByEmail||{})[email];
+  if(!o)return null;
+  const c=window.SUB_FREQ_CACHE[o.id];
+  if(!c)return null;
+  return c.freqDays||null;
+}
+function getSubStatus(email){
+  const o=(window._subInitByEmail||{})[email];
+  if(!o)return null;
+  const c=window.SUB_FREQ_CACHE[o.id];
+  if(!c)return null;
+  return c.status||null;
 }
 
 async function init(){
