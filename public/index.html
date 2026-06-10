@@ -301,6 +301,9 @@ window.showSection=function(id){
       if(window._subDailyReady)window._subDailyReady();
     },100);
   }
+  if(id==='suscripciones'&&window._renderCobrosPendientes){
+    setTimeout(window._renderCobrosPendientes,200);
+  }
 };
 
 async function apiFetch(path){const r=await fetch(PROXY+'/api/'+path);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
@@ -1610,34 +1613,7 @@ function renderAll(){
             <th style="text-align:right">Monto</th>
           </tr>
         </thead>
-        <tbody>
-          ${(()=>{
-            let html='';
-            let lastFecha='';
-            cobrosPendientesDetalle.forEach(cb=>{
-              const isNewDay=cb.fecha!==lastFecha;
-              if(isNewDay){
-                lastFecha=cb.fecha;
-                html+=\`<tr style="background:#f0fdf8">
-                  <td colspan="5" style="font-weight:700;color:#1D9E75;font-size:11px;padding:6px 0 4px">
-                    📅 \${cb.fechaLabel} — \${cb.diaSemana}
-                  </td>
-                </tr>\`;
-              }
-              html+=\`<tr>
-                <td style="color:#999;font-size:11px">\${cb.fechaLabel}</td>
-                <td style="color:#999;font-size:11px">\${cb.diaSemana}</td>
-                <td>
-                  <div style="font-weight:600;font-size:12px">\${cb.nombre}</div>
-                  <div style="font-size:10px;color:#999;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">\${cb.email}</div>
-                </td>
-                <td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">\${cb.producto}</td>
-                <td style="font-weight:600;text-align:right">\${fmt(cb.monto)}</td>
-              </tr>\`;
-            });
-            return html;
-          })()}
-        </tbody>
+        <tbody id="cobros-tbody"></tbody>
         <tfoot>
           <tr style="background:#f0fdf8;font-weight:700">
             <td colspan="4" style="padding-top:8px">Total pendiente este mes</td>
@@ -1859,6 +1835,29 @@ function renderAll(){
   if(SELECTED_RECOMPRA_MONTH)renderRecompraDetail(SELECTED_RECOMPRA_MONTH);
 
   // Render daily subscription chart separately after DOM is ready
+  // Populate cobros pendientes table (avoid template literal nesting issues)
+  window._renderCobrosPendientes=()=>{
+    const tbody=document.getElementById('cobros-tbody');
+    if(!tbody||!cobrosPendientesDetalle||!cobrosPendientesDetalle.length)return;
+    let html='';
+    let lastFecha='';
+    cobrosPendientesDetalle.forEach(function(cb){
+      if(cb.fecha!==lastFecha){
+        lastFecha=cb.fecha;
+        html+='<tr style="background:#f0fdf8"><td colspan="5" style="font-weight:700;color:#1D9E75;font-size:11px;padding:6px 0 4px">'+cb.fechaLabel+' ('+cb.diaSemana+')</td></tr>';
+      }
+      html+='<tr>';
+      html+='<td style="color:#999;font-size:11px">'+cb.fechaLabel+'</td>';
+      html+='<td style="color:#999;font-size:11px">'+cb.diaSemana+'</td>';
+      html+='<td><div style="font-weight:600;font-size:12px">'+cb.nombre+'</div><div style="font-size:10px;color:#999;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+cb.email+'</div></td>';
+      html+='<td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+cb.producto+'</td>';
+      html+='<td style="font-weight:600;text-align:right">'+fmt(cb.monto)+'</td>';
+      html+='</tr>';
+    });
+    tbody.innerHTML=html;
+  };
+  setTimeout(window._renderCobrosPendientes,400);
+
   window._subDailyReady=()=>{
     // Subscription evolution chart (activos por mes + neto)
     if(subEvolucionMensual&&subEvolucionMensual.length>0){
