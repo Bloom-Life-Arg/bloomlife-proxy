@@ -1036,6 +1036,49 @@ function renderAll(){
   window._atRiskEmails=atRisk.map(c=>c.email);
   window._atRiskData=atRisk;
 
+  // ── SUSCRIPTORES EXPORT DATA ──────────────────────────────
+  // Cross-reference active subscribers with order data for full contact info
+  window._subExportData=activeSubLast30.map(sub=>{
+    // Find most recent paid order for this subscriber
+    const subOrders=paid.filter(o=>o.customer?.email===sub.email)
+      .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+    const lastOrder=subOrders[0];
+    const customer=lastOrder?.customer||{};
+    const shipping=lastOrder?.shipping_address||lastOrder?.billing_address||{};
+    // Last subscription order product
+    const lastSubOrder=subPaid.filter(o=>o.customer?.email===sub.email)
+      .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))[0];
+    const producto=(lastSubOrder?.products||[])
+      .map(p=>getName(p.name))
+      .filter(n=>!n.toLowerCase().includes('envío'))
+      .join(' + ')||'—';
+    // Frequency from cache
+    const initOrder=(window._subInitByEmail||{})[sub.email];
+    const cached=initOrder?window.SUB_FREQ_CACHE[initOrder.id]:null;
+    const freqDays=typeof cached==='object'?cached?.freqDays:cached;
+    const freqStr=freqDays?freqDays+'d':'—';
+    // Last cobro date and amount
+    const lastSub=subPaid.filter(o=>o.customer?.email===sub.email)
+      .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at))[0];
+    return{
+      nombre:customer.name||sub.name||'',
+      email:sub.email||'',
+      telefono:customer.phone||lastOrder?.contact_phone||'',
+      dni:customer.identification?.number||customer.identification||'',
+      direccion:[shipping.address,shipping.number,shipping.floor,shipping.apartment].filter(Boolean).join(' ')||'',
+      ciudad:shipping.city||'',
+      provincia:shipping.province||'',
+      cp:shipping.zipcode||shipping.zip||'',
+      pais:shipping.country||'Argentina',
+      producto,
+      frecuencia:freqStr,
+      desde:lastSubOrder?new Date(lastSubOrder.created_at).toLocaleDateString('es-AR'):'',
+      ultimoCobro:lastSub?new Date(lastSub.created_at).toLocaleDateString('es-AR'):'',
+      monto:lastSub?Math.round(parseFloat(lastSub.total||0)):0,
+      pedidos:sub.orders||subOrders.length,
+    };
+  });
+
   // Signal card helper
   const signalClass=(val,goodThresh,warnThresh,higher=true)=>{
     if(val===null||val===undefined||isNaN(val))return'neutral';
@@ -1583,6 +1626,9 @@ function renderAll(){
 
   <div id="sec-suscripciones" class="section">
     ${subCount===0?'<div class="card"><div class="empty">No se encontraron pedidos de suscripción.</div></div>':`
+    <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+      <button class="btn-export" onclick="exportSuscriptores()">⬇ Exportar datos de suscriptores activos (${activeSubLast30.length})</button>
+    </div>
     <div class="kpis">
       <div class="kpi"><div class="kpi-label">Suscriptores activos</div><div class="kpi-value">${fmtN(activeSubLast30.length)}</div><div class="kpi-sub">renovaron en últimos 45d</div></div>
       <div class="kpi"><div class="kpi-label">MRR estimado</div><div class="kpi-value">${fmt(subMonthlyMap[subMonthKeys[subMonthKeys.length-1]]?.rev||0)}</div><div class="kpi-sub">último mes</div></div>
@@ -2899,6 +2945,40 @@ function renderFinances(){
   renderFinCostos();
   renderFinProv();
 }
+
+// ── EXPORT SUSCRIPTORES ACTIVOS ──────────────────────────
+window.exportSuscriptores=function(){
+  const data=window._subExportData||[];
+  if(!data.length){alert('Sin datos de suscriptores para exportar');return;}
+  const bom='﻿';
+  const headers=['Nombre','Email','Teléfono','DNI/CUIT','Dirección','Ciudad','Provincia','CP','País','Producto','Frecuencia','Suscriptor desde','Último cobro','Monto último cobro','Pedidos sub'];
+  const rows=data.map(s=>[
+    s.nombre||'',
+    s.email||'',
+    s.telefono||'',
+    s.dni||'',
+    s.direccion||'',
+    s.ciudad||'',
+    s.provincia||'',
+    s.cp||'',
+    s.pais||'',
+    s.producto||'',
+    s.frecuencia||'',
+    s.desde||'',
+    s.ultimoCobro||'',
+    s.monto||'',
+    s.pedidos||'',
+  ].map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(','));
+  const csv=bom+headers.join(',')+'
+'+rows.join('
+');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='bloom_suscriptores_activos.csv';
+  document.body.appendChild(a);a.click();
+  document.body.removeChild(a);URL.revokeObjectURL(url);
+};
 
 // ── EXPORT AT-RISK EMAILS ─────────────────────────────────
 window.exportAtRiskEmails=function(){
