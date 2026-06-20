@@ -7,7 +7,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ── CREDENCIALES ──────────────────────────────────────────────────────────────
+// \u2500\u2500 CREDENCIALES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 const ACCESS_TOKEN = process.env.TIENDANUBE_TOKEN;
 const USER_ID = process.env.TIENDANUBE_USER_ID;
 const BASE = 'https://api.tiendanube.com/v1/' + USER_ID;
@@ -17,24 +17,49 @@ const HEADERS = {
   'Content-Type': 'application/json'
 };
 
-// ── TABLA DE COMBOS ───────────────────────────────────────────────────────────
+// \u2500\u2500 TABLA DE COMBOS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 const COMBO_COMPONENTES = {
-  'Glow your Mind Combo | Tremella + Melena de león + Ashwagandha | Gummies y Capsuals': [
+  // \u2500\u2500 Combos agregados 2026-06-19 (auditor\xeda de cat\xe1logo) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  'Fresh Flow Combo | Melena de Le\xf3n + Cordyceps + Tremella + Ashwagandha | Gummies': [
+    { sku: 'MELENAGUMMIES', cantidad: 1 },
+    { sku: 'CORDYCEPSGUMMIES', cantidad: 1 },
+    { sku: 'TREMELLAGUMMIES', cantidad: 1 },
+    { sku: 'ASHWAGANDHAGUMMIES', cantidad: 1 },
+  ],
+  'Glow & Go Combo | Tremella y Cordyceps | Gummies': [
+    { sku: 'TREMELLAGUMMIES', cantidad: 1 },
+    { sku: 'CORDYCEPSGUMMIES', cantidad: 1 },
+  ],
+  'Glow & Regulate Combo | Tremella y Ashwagandha | Gummies': [
+    { sku: 'TREMELLAGUMMIES', cantidad: 1 },
+    { sku: 'ASHWAGANDHAGUMMIES', cantidad: 1 },
+  ],
+  'Glow your Mind Combo | Tremella + Melena de le\xf3n + Ashwagandha | Gummies': [
+    { sku: 'TREMELLAGUMMIES', cantidad: 1 },
+    { sku: 'MELENAGUMMIES', cantidad: 1 },
+    { sku: 'ASHWAGANDHAGUMMIES', cantidad: 1 },
+  ],
+  'Radiance & Mind Combo | Melena de Le\xf3n + Reishi + Tremella | Gummies': [
+    { sku: 'MELENAGUMMIES', cantidad: 1 },
+    { sku: 'REISHIGUMMIES', cantidad: 1 },
+    { sku: 'TREMELLAGUMMIES', cantidad: 1 },
+  ],
+  'Glow your Mind Combo | Tremella + Melena de le\xf3n + Ashwagandha | Gummies y Capsuals': [
     { sku: 'TREMELLAGUMMIES', cantidad: 1 },
     { sku: 'MELENACAPSULAS', cantidad: 1 },
     { sku: 'ASHWAGANDHACAPSULAS', cantidad: 1 },
   ],
-  'Balance Combo | Melena de León + Reishi + Ashwagandha | Capsulas y Gummies': [
+  'Balance Combo | Melena de Le\xf3n + Reishi + Ashwagandha | Capsulas y Gummies': [
     { sku: 'MELENACAPSULAS', cantidad: 1 },
     { sku: 'REISHIGUMMIES', cantidad: 1 },
     { sku: 'ASHWAGANDHAGUMMIES', cantidad: 1 },
   ],
-  'Clear Mind Combo | Melena de León + Reishi + Ashwagandha | Gummies': [
+  'Clear Mind Combo | Melena de Le\xf3n + Reishi + Ashwagandha | Gummies': [
     { sku: 'MELENAGUMMIES', cantidad: 1 },
     { sku: 'REISHIGUMMIES', cantidad: 1 },
     { sku: 'ASHWAGANDHAGUMMIES', cantidad: 1 },
   ],
-  'Full Day Mix Combo | Melena de León capsulas + Cordyceps gummies + Ashwagandha capsulas': [
+  'Full Day Mix Combo | Melena de Le\xf3n capsulas + Cordyceps gummies + Ashwagandha capsulas': [
     { sku: 'MELENACAPSULAS', cantidad: 1 },
     { sku: 'CORDYCEPSGUMMIES', cantidad: 1 },
     { sku: 'ASHWAGANDHACAPSULAS', cantidad: 1 },
@@ -47,38 +72,38 @@ const COMBO_COMPONENTES = {
     { sku: 'REISHIGUMMIES', cantidad: 1 },
     { sku: 'ASHWAGANDHACAPSULAS', cantidad: 1 },
   ],
-  'Glory Gummies Combo | Tremella + Reishi + Ashwagandha + Melena de León + Cordyceps': [
+  'Glory Gummies Combo | Tremella + Reishi + Ashwagandha + Melena de Le\xf3n + Cordyceps': [
     { sku: 'TREMELLAGUMMIES', cantidad: 1 },
     { sku: 'REISHIGUMMIES', cantidad: 1 },
     { sku: 'ASHWAGANDHAGUMMIES', cantidad: 1 },
     { sku: 'MELENAGUMMIES', cantidad: 1 },
     { sku: 'CORDYCEPSGUMMIES', cantidad: 1 },
   ],
-  'Beauty & Balance Combo | Tremella + Reishi': [
+  'Beauty & Balance Combo | Tremella + Reishi | Gummies': [
     { sku: 'TREMELLAGUMMIES', cantidad: 1 },
     { sku: 'REISHIGUMMIES', cantidad: 1 },
   ],
-  'Full Day Gummies 2 Combo | Melena de León + Cordyceps + Ashwagandha': [
+  'Full Day Gummies 2 Combo | Melena de Le\xf3n + Cordyceps + Ashwagandha': [
     { sku: 'MELENAGUMMIES', cantidad: 1 },
     { sku: 'CORDYCEPSGUMMIES', cantidad: 1 },
     { sku: 'ASHWAGANDHAGUMMIES', cantidad: 1 },
   ],
-  'Bye Bye Anxiety Combo | Ashwagandha + Melena de León | Gummies': [
+  'Bye Bye Anxiety Combo | Ashwagandha + Melena de Le\xf3n | Gummies': [
     { sku: 'ASHWAGANDHAGUMMIES', cantidad: 1 },
     { sku: 'MELENAGUMMIES', cantidad: 1 },
   ],
-  'Ultimate Balance Combo | Ashwagandha + Reishi + Cordyceps + Melena de León | Gummies': [
+  'Ultimate Balance Combo | Ashwagandha + Reishi + Cordyceps + Melena de Le\xf3n | Gummies': [
     { sku: 'ASHWAGANDHAGUMMIES', cantidad: 1 },
     { sku: 'REISHIGUMMIES', cantidad: 1 },
     { sku: 'CORDYCEPSGUMMIES', cantidad: 1 },
     { sku: 'MELENAGUMMIES', cantidad: 1 },
   ],
-  'Full Day Gummies Combo | Melena de León + Cordyceps + Reishi': [
+  'Full Day Gummies Combo | Melena de Le\xf3n + Cordyceps + Reishi': [
     { sku: 'MELENAGUMMIES', cantidad: 1 },
     { sku: 'CORDYCEPSGUMMIES', cantidad: 1 },
     { sku: 'REISHIGUMMIES', cantidad: 1 },
   ],
-  'Clarity & Defense Combo | Melena de León + Reishi | Gummies': [
+  'Clarity & Defense Combo | Melena de Le\xf3n + Reishi | Gummies': [
     { sku: 'MELENAGUMMIES', cantidad: 1 },
     { sku: 'REISHIGUMMIES', cantidad: 1 },
   ],
@@ -90,17 +115,17 @@ const COMBO_COMPONENTES = {
     { sku: 'ASHWAGANDHAGUMMIES', cantidad: 1 },
     { sku: 'REISHIGUMMIES', cantidad: 1 },
   ],
-  'Brain Health Combo | Melena de León Cápsulas x 3 meses': [
+  'Brain Health Combo | Melena de Le\xf3n C\xe1psulas x 3 meses': [
     { sku: 'MELENACAPSULAS', cantidad: 3 },
   ],
   'Hormonal Balance Combo | Ashwagandha Gummies x 3 meses': [
     { sku: 'ASHWAGANDHAGUMMIES', cantidad: 3 },
   ],
-  'Bye Bye Anxiety Combo | Ashwagandha + Melena de León | Cápsulas': [
+  'Bye Bye Anxiety Combo | Ashwagandha + Melena de Le\xf3n | C\xe1psulas': [
     { sku: 'ASHWAGANDHACAPSULAS', cantidad: 1 },
     { sku: 'MELENACAPSULAS', cantidad: 1 },
   ],
-  'High Performance Combo | Melena de León + Cordyceps | Gummies': [
+  'High Performance Combo | Melena de Le\xf3n + Cordyceps | Gummies': [
     { sku: 'MELENAGUMMIES', cantidad: 1 },
     { sku: 'CORDYCEPSGUMMIES', cantidad: 1 },
   ],
@@ -110,15 +135,15 @@ const COMBO_COMPONENTES = {
   'Relaxation Combo | Reishi Gummies por 3 meses': [
     { sku: 'REISHIGUMMIES', cantidad: 3 },
   ],
-  'Combo Hormonal Balance | Ashwagandha Cápsulas x 3 meses': [
+  'Combo Hormonal Balance | Ashwagandha C\xe1psulas x 3 meses': [
     { sku: 'ASHWAGANDHACAPSULAS', cantidad: 3 },
   ],
-  'Brain Health Combo | Melena de León Gummies x 3 meses': [
+  'Brain Health Combo | Melena de Le\xf3n Gummies x 3 meses': [
     { sku: 'MELENAGUMMIES', cantidad: 3 },
   ],
 };
 
-// ── FUNCIONES DE STOCK ────────────────────────────────────────────────────────
+// \u2500\u2500 FUNCIONES DE STOCK \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
 async function buscarVariantePorSKU(sku) {
   const res = await fetch(BASE + '/products?per_page=200', { headers: HEADERS });
@@ -148,11 +173,11 @@ async function descontarStockPorSKU(sku, cantidad) {
     method: 'PUT', headers: HEADERS, body: JSON.stringify({ stock: nuevoStock })
   });
   if (updateRes.ok) {
-    console.log(`[STOCK] ✓ Descuento SKU "${sku}": ${stockActual} → ${nuevoStock}`);
+    console.log(`[STOCK] \u2713 Descuento SKU "${sku}": ${stockActual} \u2192 ${nuevoStock}`);
     return { ok: true, anterior: stockActual, nuevo: nuevoStock };
   } else {
     const err = await updateRes.text();
-    console.error(`[STOCK] ✗ Error descontando SKU "${sku}":`, err);
+    console.error(`[STOCK] \u2717 Error descontando SKU "${sku}":`, err);
     return { ok: false, motivo: err };
   }
 }
@@ -174,11 +199,11 @@ async function reintegrarStockPorSKU(sku, cantidad) {
     method: 'PUT', headers: HEADERS, body: JSON.stringify({ stock: nuevoStock })
   });
   if (updateRes.ok) {
-    console.log(`[STOCK] ✓ Reintegro SKU "${sku}": ${stockActual} → ${nuevoStock}`);
+    console.log(`[STOCK] \u2713 Reintegro SKU "${sku}": ${stockActual} \u2192 ${nuevoStock}`);
     return { ok: true, anterior: stockActual, nuevo: nuevoStock };
   } else {
     const err = await updateRes.text();
-    console.error(`[STOCK] ✗ Error reintegrando SKU "${sku}":`, err);
+    console.error(`[STOCK] \u2717 Error reintegrando SKU "${sku}":`, err);
     return { ok: false, motivo: err };
   }
 }
@@ -211,7 +236,7 @@ async function procesarOrden(orden, operacion) {
   return log;
 }
 
-// ── WEBHOOK ORDEN PAGADA ──────────────────────────────────────────────────────
+// \u2500\u2500 WEBHOOK ORDEN PAGADA \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 app.post('/webhook/orden-pagada', async (req, res) => {
   res.status(200).json({ recibido: true });
   try {
@@ -225,7 +250,7 @@ app.post('/webhook/orden-pagada', async (req, res) => {
   }
 });
 
-// ── WEBHOOK ORDEN CANCELADA ───────────────────────────────────────────────────
+// \u2500\u2500 WEBHOOK ORDEN CANCELADA \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 app.post('/webhook/orden-cancelada', async (req, res) => {
   res.status(200).json({ recibido: true });
   try {
@@ -239,7 +264,7 @@ app.post('/webhook/orden-cancelada', async (req, res) => {
   }
 });
 
-// ── ENDPOINTS DE DIAGNÓSTICO ──────────────────────────────────────────────────
+// \u2500\u2500 ENDPOINTS DE DIAGN\xd3STICO \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 app.get('/combos', (req, res) => {
   const lista = Object.entries(COMBO_COMPONENTES).map(([combo, comps]) => ({ combo, componentes: comps }));
   res.json({ total: lista.length, combos: lista });
@@ -253,7 +278,7 @@ app.get('/registrar-webhook', async (req, res) => {
     });
     const data = await response.json();
     res.json(response.ok
-      ? { ok: true, mensaje: '✓ Webhook order/paid registrado', detalle: data }
+      ? { ok: true, mensaje: '\u2713 Webhook order/paid registrado', detalle: data }
       : { ok: false, mensaje: 'Error al registrar', detalle: data });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
@@ -268,7 +293,7 @@ app.get('/registrar-webhook-cancelacion', async (req, res) => {
     });
     const data = await response.json();
     res.json(response.ok
-      ? { ok: true, mensaje: '✓ Webhook order/cancelled registrado', detalle: data }
+      ? { ok: true, mensaje: '\u2713 Webhook order/cancelled registrado', detalle: data }
       : { ok: false, mensaje: 'Error al registrar', detalle: data });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
@@ -284,7 +309,7 @@ app.get('/ver-webhooks', async (req, res) => {
   }
 });
 
-// ── STOCK DE SUPLEMENTOS INDIVIDUALES ────────────────────────────────────────
+// \u2500\u2500 STOCK DE SUPLEMENTOS INDIVIDUALES \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 const SKUS_SUPLEMENTOS = [
   'TREMELLAGUMMIES', 'REISHIGUMMIES', 'ASHWAGANDHAGUMMIES',
   'MELENAGUMMIES', 'CORDYCEPSGUMMIES', 'ASHWAGANDHACAPSULAS', 'MELENACAPSULAS'
@@ -310,7 +335,7 @@ app.get('/stock-suplementos', async (req, res) => {
   }
 });
 
-// ── CREAR ORDEN B2B EN TIENDA NUBE ───────────────────────────────────────────
+// \u2500\u2500 CREAR ORDEN B2B EN TIENDA NUBE \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 app.post('/api/crear-orden-b2b', async (req, res) => {
   try {
     const { cliente, productos, notas } = req.body;
@@ -354,7 +379,7 @@ app.post('/api/crear-orden-b2b', async (req, res) => {
   }
 });
 
-// ── PROXY PARA EL DASHBOARD ───────────────────────────────────────────────────
+// \u2500\u2500 PROXY PARA EL DASHBOARD \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 app.get('/api/*', async (req, res) => {
   try {
     const apiPath = req.path.replace(/^\/api\//, '');
