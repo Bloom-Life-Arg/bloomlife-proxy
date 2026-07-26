@@ -143,6 +143,40 @@ const COMBO_COMPONENTES = {
   ],
 };
 
+// ── MATCH POR PRODUCT ID (robusto: sobrevive renombrar el producto) ──
+// product_id de TN -> key EXACTA de COMBO_COMPONENTES. Generado 2026-07-25 (cross-check por API,
+// biyeccion 28<->28 verificada). Si se agrega/renombra un combo, sumar aca su id -> key.
+const COMBO_IDS = {
+  268200978: 'Brain Health Combo | Melena de Le\xf3n Gummies x 3 meses',
+  268207436: 'Combo Hormonal Balance | Ashwagandha C\xe1psulas x 3 meses',
+  268208596: 'Relaxation Combo | Reishi Gummies por 3 meses',
+  268209140: 'Energy Support Combo | Cordyceps Gummies x 3 meses',
+  270150341: 'High Performance Combo | Melena de Le\xf3n + Cordyceps | Gummies',
+  279852999: 'Bye Bye Anxiety Combo | Ashwagandha + Melena de Le\xf3n | C\xe1psulas',
+  286699791: 'Hormonal Balance Combo | Ashwagandha Gummies x 3 meses',
+  286700321: 'Brain Health Combo | Melena de Le\xf3n C\xe1psulas x 3 meses',
+  294585978: 'Deep Sleep Combo | Ashwagandha + Reishi | Gummies',
+  294588163: 'Go Strong Combo | Cordyceps + Reishi | Gummies',
+  294591691: 'Clarity & Defense Combo | Melena de Le\xf3n + Reishi | Gummies',
+  294593106: 'Full Day Gummies Combo | Melena de Le\xf3n + Cordyceps + Reishi',
+  294595560: 'Ultimate Balance Combo | Ashwagandha + Reishi + Cordyceps + Melena de Le\xf3n | Gummies',
+  305609431: 'Bye Bye Anxiety Combo | Ashwagandha + Melena de Le\xf3n | Gummies',
+  325250064: 'Full Day Gummies 2 Combo | Melena de Le\xf3n + Cordyceps + Ashwagandha',
+  330540800: 'Beauty & Balance Combo | Tremella + Reishi | Gummies',
+  330540927: 'Glory Gummies Combo | Tremella + Reishi + Ashwagandha + Melena de Le\xf3n + Cordyceps',
+  330882657: 'Calm & Glow Combo | Tremella + Reishi + Ashwagandha capsulas',
+  331418228: 'Beautiful Combo | Tremella Gummies x 3 meses',
+  331475056: 'Full Day Mix Combo | Melena de Le\xf3n capsulas + Cordyceps gummies + Ashwagandha capsulas',
+  332298698: 'Clear Mind Combo | Melena de Le\xf3n + Reishi + Ashwagandha | Gummies',
+  336900602: 'Balance Combo | Melena de Le\xf3n + Reishi + Ashwagandha | Capsulas y Gummies',
+  336902645: 'Glow your Mind Combo | Tremella + Melena de le\xf3n + Ashwagandha | Gummies y Capsuals',
+  339648634: 'Glow your Mind Combo | Tremella + Melena de le\xf3n + Ashwagandha | Gummies',
+  341180946: 'Glow & Go Combo | Tremella y Cordyceps | Gummies',
+  341313375: 'Fresh Flow Combo | Melena de Le\xf3n + Cordyceps + Tremella + Ashwagandha | Gummies',
+  342427990: 'Radiance & Mind Combo | Melena de Le\xf3n + Reishi + Tremella | Gummies',
+  349316562: 'Glow & Regulate Combo | Tremella y Ashwagandha | Gummies',
+};
+
 // \u2500\u2500 FUNCIONES DE STOCK \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
 async function buscarVariantePorSKU(sku) {
@@ -222,14 +256,18 @@ async function procesarOrden(orden, operacion) {
   for (const item of productos) {
     const nombreProducto = typeof item.name === 'string' ? item.name : (item.name?.es || item.name?.en || Object.values(item.name || {})[0] || '');
     const cantidadVendida = item.quantity || 1;
-    const componentes = COMBO_COMPONENTES[nombreProducto.trim()];
+    // Match por product_id primero (robusto ante renombres); fallback al nombre exacto.
+    const clavePorId = (item.product_id != null) ? COMBO_IDS[item.product_id] : undefined;
+    const clave = clavePorId || nombreProducto.trim();
+    const componentes = COMBO_COMPONENTES[clave];
     if (componentes) {
-      console.log(`[WEBHOOK] Combo detectado (${operacion}): "${nombreProducto}" (x${cantidadVendida})`);
+      const via = clavePorId ? `id ${item.product_id}` : 'nombre';
+      console.log(`[WEBHOOK] Combo detectado por ${via} (${operacion}): "${clave}" (x${cantidadVendida})`);
       for (const comp of componentes) {
         const resultado = operacion === 'descontar'
           ? await descontarStockPorSKU(comp.sku, comp.cantidad * cantidadVendida)
           : await reintegrarStockPorSKU(comp.sku, comp.cantidad * cantidadVendida);
-        log.push({ combo: nombreProducto, sku: comp.sku, ...resultado });
+        log.push({ combo: clave, sku: comp.sku, ...resultado });
       }
     }
   }
