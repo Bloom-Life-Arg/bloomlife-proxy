@@ -141,6 +141,11 @@ const COMBO_COMPONENTES = {
   'Brain Health Combo | Melena de Le\xf3n Gummies x 3 meses': [
     { sku: 'MELENAGUMMIES', cantidad: 3 },
   ],
+  'Menopause Balance Combo | Ashwagandha + Melena de Le\xf3n + Reishi | Gummies': [
+    { sku: 'ASHWAGANDHAGUMMIES', cantidad: 1 },
+    { sku: 'MELENAGUMMIES', cantidad: 1 },
+    { sku: 'REISHIGUMMIES', cantidad: 1 },
+  ],
 };
 
 // ── MATCH POR PRODUCT ID (robusto: sobrevive renombrar el producto) ──
@@ -175,6 +180,7 @@ const COMBO_IDS = {
   341313375: 'Fresh Flow Combo | Melena de Le\xf3n + Cordyceps + Tremella + Ashwagandha | Gummies',
   342427990: 'Radiance & Mind Combo | Melena de Le\xf3n + Reishi + Tremella | Gummies',
   349316562: 'Glow & Regulate Combo | Tremella y Ashwagandha | Gummies',
+  357970722: 'Menopause Balance Combo | Ashwagandha + Melena de Le\xf3n + Reishi | Gummies',
 };
 
 // \u2500\u2500 FUNCIONES DE STOCK \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
